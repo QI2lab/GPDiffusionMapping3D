@@ -10,25 +10,46 @@ To download the package, simply clone this repository using `git` or click the g
 
 #### Setup environment
 
-In order to run the code you will need to set up a virtual environment and install the required packages. This can be done by running the following commands in the terminal or command prompt.
+Use Python 3.12 and uv from the checkout directory. `pyproject.toml` is the
+dependency specification. Resolve a local environment with:
 
-##### Mac/Linux Users
-
-In the terminal, `cd` to the project directory and run the follwing:
 ```bash
-python -m venv .env
-source .env/bin/activate
-pip install -r requirements.txt
+uv sync
+uv sync --group dev --extra gpu
 ```
 
-##### Windows Users
+Windows/Linux select the project's GPU extra through the default `gpu` group.
+This installs `cupy-cuda12x[ctk]` and its CUDA component wheels; an NVIDIA driver
+is required. The existing inference implementation still uses CPU; installing
+CuPy does not establish GPU inference support.
 
-In the command prompt, `cd` to the project directory and run the follwing:
+For a CPU-only environment:
+
 ```bash
-python -m venv .env
-.env\Scripts\activate
-pip install -r requirements.txt
+uv sync --group dev --no-default-groups
 ```
+
+Use `uv run --no-sync` for subsequent commands so the chosen environment stays
+selected. `uv.lock` is local and ignored; fresh checkouts resolve with `uv sync`.
+
+The standalone migration validation is:
+
+```bash
+uv run --no-sync python scripts/validate_migration.py
+```
+
+Scientific test directories and markers are prepared for Stage 3; no formal
+tests exist yet. Once supplied, run hardware suites separately:
+
+```bash
+uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
+```
+
+In PowerShell set `$env:GPD_REQUIRE_GPU = "1"` before the GPU command and remove
+it afterward with `Remove-Item Env:GPD_REQUIRE_GPU`.
+
+See `docs/stage-validation.txt` for executed checks and the incomplete Stage 1 gate.
 
 ## Usage
 

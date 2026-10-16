@@ -1,0 +1,69 @@
+Local stage evidence, 2026-10-16
+
+Starting revision: 1733d388e6faad15cc01b28ce14bfbca17122501.
+Relative to d896544d019a6d702d3ccf5438c9b21b9449ccab the starting
+checkout adds instructions/plan and .gitignore changes; numerical files agree.
+Preserved pre-existing deletion of root CODEX_GPDiffusionMapping_plan.txt and
+untracked docs/ plan. Created feat/3D and verified its exact name before edits.
+
+Stage 0
+Consulted all five specified OPM references at revision
+4fbbdfe9cb096d7bb6602c38e76ff51cb88949cd (the actual fetched HEAD).
+Adopted its default GPU group/self-extra and cupy-cuda12x[ctk] strategy.
+No imaging dependencies, extra indexes, library preloads or warning suppression
+were needed. Actual CUDA inverse and Cholesky operations also executed.
+
+Created a retained original Python 3.12.13 environment in /tmp/gpd-original-env
+with uv venv and uv pip install -r requirements.txt, before removing the old
+requirements specification. The original versions were numpy 1.26.4,
+numba 0.59.0, scipy 1.12.0, matplotlib 3.8.3.
+Ran scripts/validate_migration.py with uv in that environment before migration.
+CuPy >=14.1.1 requires numpy >=2.0; uv rejected the original pins. Updated the
+direct stack to numpy 2.0.2, numba 0.60.0, scipy 1.14.1 and matplotlib 3.9.4
+for NumPy 2 compatibility. No numerical implementation was changed.
+
+Executed successfully:
+  uv sync --group dev --no-default-groups
+  uv run --no-sync python scripts/validate_migration.py
+  uv sync --group dev --extra gpu
+
+Both original and migrated CPU environments passed independent kernel and
+Gaussian log-density comparisons and the fixed-seed constant-D simulation:
+  20,000 steps, D=50,000 nm^2/s, dt=1/30 s, seed=20261016
+  MLE=50504.548339772904 nm^2/s
+  chi-square=40403.63867181832 (40,000 degrees of freedom)
+  Gaussian log-density absolute error=2.9103830456733704e-11
+  kernel maximum error=0
+Tolerance was 2e-14 relative for numerical checks and a predeclared 99.9%
+chi-square interval for the physical simulation. This validates the checked
+arithmetic, not complete inference recovery or performance.
+
+GPU environment resolved CuPy 14.2.0 with CUDA toolkit wheels 12.9.2.0.
+Executed via uv run --no-sync python -c in the sandbox:
+  cp.arange(32, dtype=cp.float64); cp.sum(x*x); device.synchronize()
+  device: NVIDIA GeForce RTX 3090
+  result: 10416.0, verified exactly
+Also executed float64 2x2 inverse and Cholesky and synchronized successfully.
+CUDA did not require an outside-sandbox retry. Branch creation, uv cache/package
+installation and reference downloads required approved outside-sandbox commands.
+uv.lock is ignored and absent from git ls-files. Linux only was exercised;
+Windows/macOS and CI were not tested. No formal pytest suites were run.
+
+Stage 1: incomplete, failed prerequisite mathematical consistency check
+Read the paper's preprint methods (publisher full text was inaccessible):
+https://www.biorxiv.org/content/10.1101/2024.02.27.582378v1.full
+The interpolation and transformed proposal must describe the same field.
+Existing code sets R=K+epsilon*mean(K)*I, W=B.T@inv(R), and initializes Ddata=W@D.
+Its proposal updates Dnew=D+K[:,k]*delta, but Ddata_new=Ddata+B[k,:]*delta.
+Direct recomputation is instead W@Dnew. Their discrepancy is
+  (B.T - W@K)[:,k]*delta = epsilon*mean(K)*W[:,k]*delta.
+This is nonzero with existing regularization, so CPU agreement cannot be an
+independent correctness oracle. Reproducer: scripts/validate_incremental.py.
+Controlled example: maximum discrepancy 0.0033222158577337346.
+No tolerance was widened and no correction was silently applied.
+The next numerical change must isolate and document a consistent regularized
+representation in both CPU and GPU implementations, preserving the prior,
+proposal correction, update order and annealing/adaptation.
+
+Stages 1-5 have not passed. No GPU inference, float32 decision, inference
+recovery, speedup or inference memory claim is made. No 3D or CLI changes made.

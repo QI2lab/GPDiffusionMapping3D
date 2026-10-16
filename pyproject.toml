@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpdiffusionmapping"
+version = "0.1.0"
+description = "Gaussian-process diffusion mapping from particle trajectories"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {file = "LICENSE"}
+dependencies = [
+    "numpy==2.0.2",
+    "numba==0.60.0",
+    "scipy==1.14.1",
+    "matplotlib==3.9.4",
+]
+
+[project.optional-dependencies]
+gpu = ["cupy-cuda12x[ctk]>=14.1.1; sys_platform == 'linux' or sys_platform == 'win32'"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+gpu = ["gpdiffusionmapping[gpu]; sys_platform == 'linux' or sys_platform == 'win32'"]
+
+[tool.uv]
+default-groups = ["gpu"]
+
+[tool.setuptools]
+py-modules = ["data_reader", "functions", "model", "plotting"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/cpu", "tests/gpu"]
+markers = [
+    "cpu: scientific calculations on the CPU",
+    "gpu: scientific calculations on actual CUDA hardware",
+    "unit: independent mathematical identities",
+    "integration: independently simulated physical behavior and inference",
+]
