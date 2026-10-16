@@ -49,7 +49,7 @@ GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -
 In PowerShell set `$env:GPD_REQUIRE_GPU = "1"` before the GPU command and remove
 it afterward with `Remove-Item Env:GPD_REQUIRE_GPU`.
 
-See `docs/stage-validation.txt` for executed checks and the incomplete Stage 1 gate.
+See `docs/stage-validation.txt` for executed checks and stage status.
 
 ## Usage
 
@@ -79,11 +79,20 @@ was rejected for inaccurate proposal likelihood ratios and remains a diagnostic
 option with an explicit warning; use float64 for inference.
 
 Timestamped 3D numerical and physical-recovery cases pass, but independent
-chain-mean agreement failed at 1,000 production iterations due to poor mixing.
-An extended 5,000-iteration comparison is in progress. Stage 4 is incomplete;
+chain-mean agreement failed at 1,000 and 5,000 production iterations, with slow
+mixing and batch-length-sensitive uncertainty estimates. A matched uniform/smooth
+investigation added 10,000 discarded temperature-one sweeps after adaptation,
+before 5,000 production sweeps. Both fields still mixed poorly: maximum split
+R-hat 1.78 (uniform) / 1.87 (smooth), with coefficients that never updated in
+production. See `docs/3d-burnin-investigation.txt`, `docs/stage4-burnin-10000.json`
+and `docs/figures/3d-burnin-10000.png`. Stage 4 is incomplete;
 the Stage 5 refactoring and CLI have not started. The GPU suite includes this
 long-running comparison. See `docs/stage-validation.txt` and
 `docs/figures/3d-sampling-1000.png` for evidence.
+
+The computational API accepts `burn_in=10000` to request extra discarded sweeps
+after the original annealing and adaptation. Proposal widths remain fixed during
+these additional sweeps and production; the default remains zero extra sweeps.
 
 ## Assumed Units
 

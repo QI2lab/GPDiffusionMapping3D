@@ -1,0 +1,101 @@
+LOCAL EXECUTION STATUS
+
+Branch: feat/3D. All implementation and validation are local; no push or PR.
+Stages 0, 1, 2 and 3 are complete. Stage 2 rejected float32 and retained
+float64. Stage 4 mathematical and physical recovery checks passed, but
+independent-chain mixing is unresolved. Stage 5 has not started.
+
+Environment: Python 3.12.13, NumPy 2.0.2, Numba 0.60.0, SciPy 1.14.1,
+Matplotlib 3.9.4, CuPy 14.2.0, CUDA runtime 12.9. Actual CUDA device:
+NVIDIA GeForce RTX 3090. A fresh synchronized CuPy calculation of
+sum(arange(32, dtype=float64)**2) returned 10416.0.
+
+The packaging follows the relevant CuPy wheel/extra/default-group strategy
+from QI2lab/opm-processing-v2 revision
+4fbbdfe9cb096d7bb6602c38e76ff51cb88949cd. Imaging packages and unused library
+preloads were not copied. uv.lock stays ignored, local and untracked.
+
+SEQUENTIAL WARMED INFERENCE MEASUREMENTS
+
+All rows use float64. Times include initialization, transfers and the complete
+annealing/stabilization/production schedule after kernel/context warmup.
+They do not include cold Python/CUDA import startup. Concurrent correctness
+and long-chain diagnostic runs are not used as speed benchmarks.
+
+Workload           Backend  Full Gaussian error*  MAP RMS recovery  Seconds
+2D:100k,m=36,n=100  CPU      0                    1.897%            43.4735
+2D:100k,m=36,n=100  GPU      2.91e-11             1.897%            30.1589
+3D:20k,m=125,n=100 CPU      7.28e-12             4.971%            32.8878
+3D:20k,m=125,n=100 GPU      7.28e-12             4.971%            30.1335
+
+* Absolute log-density error at initialization against independent Gaussian
+calculations on each exact benchmark dataset; not an MCMC convergence metric.
+Initial CPU/GPU field differences: 2D 3.97e-14; 3D 3.49e-14.
+GPU bulk live arrays/pool capacity: 2D 62,453,568 / 210,595,840 bytes;
+3D 41,913,000 / 141,346,816 bytes. Pool capacity includes reusable allocations.
+2D representative full inference speedup was 1.4415x; small 2D runs were slower
+on GPU. Physical recovery of a point estimate does not establish mixing.
+
+PRECISION DECISION
+
+The predeclared acceptance-log-ratio error budget is 1e-4. Float32 fails it:
+2D stressed error 0.00116543; 100k ordinary/stressed errors 0.0004924/0.00998855;
+3D ordinary/stressed errors 0.0001533/0.0442453. Half-sized float32 arrays and
+successful physical recovery do not override that numerical failure. Float64
+is the validated precision; float32 remains explicitly warned diagnostics.
+No mixed-precision scheme, diffusion floors, or larger jitter were introduced.
+
+SAMPLING LIMITATION
+
+On smooth irregular-time 3D data with independent sampler seeds 41/42 and
+common data seed 41, 5,000 production sweeps after 10,000 annealing and 200
+stabilization sweeps failed the original ten-batch comparison at 4/27 central
+positions. Estimated minimum ESS was CPU 8.47 / GPU 6.20. A later diagnostic
+found maximum rank-normalized split R-hat 1.84, with all 27 positions above
+1.01. MC uncertainty is batch-length-sensitive: the nominal comparison alone
+does not have established 99% coverage when its batches remain dependent.
+Saved evidence: stage4-sampling-5000.json and figures/3d-sampling-5000.png.
+
+The user authorized a matched uniform/smooth investigation with 10,000 extra
+discarded temperature-one sweeps at fixed proposal widths. See
+stage4-burnin-10000.json and 3d-burnin-investigation.txt for that separate
+experiment. Completed results show uniform/smooth maximum rank split R-hat
+1.78485/1.87365 and minimum projected ESS CPU/GPU 6.62/5.88 and 5.86/5.02.
+Every chain has at least one coefficient with zero accepted production
+updates. Longer fixed-width burn-in did not establish convergence. The
+original 500-sweep-batch comparisons fail at 5/27 uniform and 7/27 smooth
+positions; larger-batch nominal passes are not accepted as convergence.
+Proposal widths for frozen coefficients are severely mismatched to local
+conditional scales. Stage 4 remains incomplete; the sampler was preserved.
+
+After optional burn-in support, preservation runs passed separately:
+CPU full mathematics/physics: 30 passed, 365.91 s.
+Required GPU excluding the separately executed old long comparison:
+16 passed, 1 deselected, zero skips, 640.74 s. The four extended-burn-in
+chains were run explicitly in the independent investigation, not counted
+as passing pytest tests or as a completed scientific sampling gate.
+
+INSTALLATION AND EXECUTION
+
+GPU development setup:
+    uv sync --group dev --extra gpu
+CPU-only setup:
+    uv sync --group dev --no-default-groups
+After setup, retain the selected environment with uv run --no-sync.
+
+Scientific suites (CPU and GPU are separate):
+    uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
+The GPU suite includes the known failing, long 3D chain-mean comparison.
+Historical executed test counts and subsequent reruns are in
+stage-validation.txt; no skipped run is presented as hardware validation.
+
+Computational API: model.analyze(data, backend="cpu" or "gpu", dtype="float64").
+Optional burn_in specifies additional discarded temperature-one sweeps after
+adaptation. Three-dimensional data preparation uses linked ZYX tracks and
+each displacement's actual numeric elapsed seconds. The inferred field is
+static D(z,y,x). Refactoring, Parquet and the Typer CLI await Stage 4.
+
+Windows, macOS, CPU-only fresh installation on a different machine, other
+GPU architectures and CI were not validated. Linux CPU/CUDA results above
+apply to the recorded local environment, not arbitrary dependency resolution.
