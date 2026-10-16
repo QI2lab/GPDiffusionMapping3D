@@ -214,3 +214,17 @@ Independent-chain comparison uses sampler seeds 41/42 with identical simulated
 data seed 41; this separates dataset randomness from independent chain seeds.
 Earlier GPU sampling/timing evidence is superseded pending the reruns below;
 deterministic float32 accuracy rejection and mathematical bounds are unchanged.
+
+Post-RNG-correction revalidation, in stage order:
+Stage 1 PASSED again: all seeds/fields/finer simulations and mathematical
+checks passed. Updated stage1-results.json: 100k-step full warmed inference
+CPU 43.4735 s, GPU 30.1589 s (1.4415x), recovery 1.897% both. Pool capacity
+210,595,840 bytes. Host context/kernel warmup is reported separately in the
+benchmark entries; full inference timings include transfers and all schedule
+phases after warmup, not a claim about cold Python/CUDA import startup.
+Post-correction Stage 2 re-run completed with the same rejection: stressed
+2D ratio error .00116543 >1e-4; three-seed float32 recovery <5.14%, but that
+physical recovery does not override the ratio failure. Updated stage2-results.json.
+3D defaults now use the protocol's already validated 5x5x5 inducing grid;
+the existing 2D defaults remain 30x30. This aligns new 3D defaults with its
+predeclared recovery operating point, rather than introducing an untested grid.

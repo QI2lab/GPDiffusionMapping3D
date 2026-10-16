@@ -9,7 +9,7 @@ import pickle
 PARAMETERS = {
 
     # General Knowns
-    'nInduZ': 4,
+    'nInduZ': 5,
     'nFineZ': 10,
     'nInduX': 30,   # Number of x inducing points
     'nInduY': 30,   # Number of y grid points (total inducing points is nInduY*nInduX)
@@ -76,9 +76,9 @@ def analyze(data, nIter=1000, backend="cpu", seed=None, dtype="float64", **kwarg
         functions.seed_sampler(seed)
     if getattr(data, "dimensions", 2) == 3:
         if "nInduX" not in kwargs:
-            parameters["nInduX"] = 6
+            parameters["nInduX"] = 5
         if "nInduY" not in kwargs:
-            parameters["nInduY"] = 6
+            parameters["nInduY"] = 5
     variables = functions.initialization(parameters, data, backend=backend, dtype=dtype)
     endTime = time.time()
 

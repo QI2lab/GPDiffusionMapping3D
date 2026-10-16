@@ -85,7 +85,32 @@ def recovery(backend='cpu',seed=41,feature=False,irregular=True,substeps=1,itera
     return dict(backend=backend,seed=seed,feature=feature,irregular=irregular,substeps=substeps,iterations=iterations,
                 seconds=time.perf_counter()-start,recovery_rms=error,estimate=estimate.tolist(),
                 posterior_mean=projected.mean(axis=0).tolist(),mc_se=mc_se.tolist(),
+                sampling=sampling_diagnostics(projected),
                 gpu_pool_bytes=cp.get_default_memory_pool().total_bytes() if backend=='gpu' else 0)
+
+
+
+def sampling_diagnostics(projected):
+    """Report autocorrelation estimates without changing any scientific gate."""
+    n = len(projected)
+    centered = projected - projected.mean(axis=0)
+    spectrum = np.fft.rfft(centered, n=2*n, axis=0)
+    covariance = np.fft.irfft(spectrum.conj()*spectrum, n=2*n, axis=0)[:n].real
+    covariance /= np.arange(n, 0, -1)[:, None]
+    rho = covariance / covariance[0]
+    tau = []
+    for axis in range(projected.shape[1]):
+        pairs = rho[:2*(n//2), axis].reshape(-1, 2).sum(axis=1)
+        positive = np.flatnonzero(pairs <= 0)
+        if len(positive):
+            pairs = pairs[:positive[0]]
+        pairs = np.minimum.accumulate(pairs)
+        tau.append(max(1., -1 + 2*pairs.sum()))
+    return dict(min_estimated_ess=float(np.min(n/np.array(tau))),
+                max_estimated_tau=float(max(tau)),
+                maximum_lag1_correlation=float(rho[1].max()),
+                maximum_split_mean_shift=float(abs(projected[:n//2].mean(axis=0)
+                    - projected[n//2:].mean(axis=0)).max()))
 
 
 if __name__ == "__main__":
