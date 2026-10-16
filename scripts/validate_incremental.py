@@ -20,7 +20,7 @@ def main():
     old = np.array([1., 1.1, .9, 1.05])
     change = .2
     # These are the two updates in diffusionPointSamplerSA_nb.
-    proposed = old + covariance[:, 0] * change
+    proposed = old + regularized[:, 0] * change
     incremental = interpolation @ old + cross[0] * change
     direct = interpolation @ proposed
     # A conservative small dense matrix arithmetic bound, declared in advance.

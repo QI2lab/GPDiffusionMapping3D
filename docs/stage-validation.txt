@@ -67,3 +67,12 @@ proposal correction, update order and annealing/adaptation.
 
 Stages 1-5 have not passed. No GPU inference, float32 decision, inference
 recovery, speedup or inference memory claim is made. No 3D or CLI changes made.
+
+Stage 1 correction (subsequent work)
+The inducing proposal now uses the same R column whose inverse defines alpha
+and interpolation. W@R[:,k]=B[k,:] to conditioning error. R replaces K only in
+the transformed-coordinate proposal; the RBF kernel, jitter magnitude, prior
+and interpolant are unchanged. Accepted alpha entries are updated explicitly.
+The original reproducer now has discrepancy 4.440892098500626e-16, below its
+unchanged 4.304979730825718e-13 bound. This is an isolated pre-existing defect
+correction, not a numerical tolerance adjustment.

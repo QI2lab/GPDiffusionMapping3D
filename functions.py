@@ -161,7 +161,8 @@ def initialization(variables, data):
     cInduIndu = covMat(induCoordinates, induCoordinates, covLambda, covL)
     cInduData = covMat(induCoordinates, dataCoordinates, covLambda, covL)
     cInduFine = covMat(induCoordinates, fineCoordinates, covLambda, covL)
-    cInduInduInv = np.linalg.inv(cInduIndu + epsilon * np.mean(cInduIndu) * np.eye(nIndu))
+    cProposal = cInduIndu + epsilon * np.mean(cInduIndu) * np.eye(nIndu)
+    cInduInduInv = np.linalg.inv(cProposal)
     cDataIndu = cInduData.T @ cInduInduInv
     cInduInduChol = np.linalg.cholesky(cInduIndu + epsilon * np.mean(cInduIndu) * np.eye(nIndu))
 
@@ -220,6 +221,7 @@ def initialization(variables, data):
     variables.dataCoordinates = dataCoordinates
     variables.induCoordinates = induCoordinates
     variables.fineCoordinates = fineCoordinates
+    variables.cProposal = cProposal
     variables.cInduIndu = cInduIndu
     variables.cInduData = cInduData
     variables.cInduFine = cInduFine
@@ -323,6 +325,7 @@ def diffusionPointSamplerSA_nb(nIndu, cInduIndu, cInduData, cInduInduInv, cDataI
                 dInduOld = dInduNew
                 dDataOld = dDataNew
                 pOld = pNew
+                alphaVect[pointIndex] = newAlphaPoint
     return dInduOld, pOld, dDataOld, accCounter
 
 
@@ -340,7 +343,7 @@ def diffusionPointSampler(variables, data):
     """
 
     # Necessary variables
-    cInduIndu = variables.cInduIndu
+    cInduIndu = variables.cProposal
     cInduData = variables.cInduData
     cInduInduInv = variables.cInduInduInv
     deltaT = data.deltaT
