@@ -97,3 +97,39 @@ the repeated CPU mathematical file passed 11 cases in 11.53 s without warnings.
 The 125-value CUDA geometry/full-density checks passed 2 unit cases in 2.64 s.
 The larger development validation starts only after these mathematical gates.
 The unchanged-default CPU preservation suite passed 40 cases in 425.28 s.
+
+Block-size-16 development FAILED at the predeclared 20000-sweep cap: smooth
+maximum rank/folded R-hat CPU1.010847 / GPU1.010389 exceeds 1.01. Minimum bulk
+ESS954/1097 and all physical recovery and backend agreement checks pass, but
+these do not override R-hat. Uniform passes all convergence metrics at the cap.
+No held-out data have been used. Do not call this candidate validated.
+
+Next tuning comparison, declared before its outcomes: block size8, with exactly
+the same full protocol, seeds, initial fields, datasets and 20000-sweep cap.
+Reducing proposal dimension should reduce coordinate autocorrelation per sweep;
+it does not change inducing points, the model, tolerance, or physical test case.
+All 278 quantities remain monitored. Keep the failed size16 campaign as evidence.
+
+Block-size-8 development PASSED at the unchanged 20000-sweep cap. Four chains
+per backend and field, all 278 quantities:
+                    max R-hat   min bulk ESS   min tail ESS   max MCSE/SD
+uniform CPU         1.005359     2200.44        4777.58        .02134
+uniform CUDA        1.003811     2126.68        4610.23        .02169
+smooth CPU          1.004936     2132.64        4195.35        .02169
+smooth CUDA         1.004896     2164.35        4428.50        .02150
+All sixteen MAP RMS errors are 4.464-6.832%, below 10%; all proposals accepted
+production moves. Independent full-Gaussian posterior recomputation differs by
+at most 1.608e-9, within the conditioning-derived bounds. CPU/CUDA central-field
+mean agreement passes. GPU pool capacity is 201349120 bytes per worker.
+Concurrent per-chain durations (~402-412 s) are not isolated speed benchmarks.
+Report: sampling-blocked8-development.json; raw unthinned traces stay local.
+
+Executed development summary:
+    uv run --no-sync python -u scripts/run_sampling_repair.py --proposal blocked --block-size 8 --directory validation_artifacts/repair-blocked8-development --output docs/sampling-blocked8-development.json --summarize-only
+It reused all saved chains after the original command session was lost; no
+chain was selectively rerun. The summary exited zero. A fresh actual CuPy
+float64 sum(arange(32)**2), followed by device synchronization, returned
+10416.0 on NVIDIA GeForce RTX3090.
+
+Held-out confirmation and the full required-CUDA suite are now running.
+Default promotion and Stage 5 remain pending those gates.

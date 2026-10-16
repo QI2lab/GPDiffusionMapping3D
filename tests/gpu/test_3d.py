@@ -74,56 +74,54 @@ def test_3d_regular_and_fine_simulator(cupy_gpu):
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("feature", [False, True])
 def test_independent_3d_chain_means_with_sampling_uncertainty(
-    cupy_gpu, tmp_path
+    cupy_gpu, tmp_path, monkeypatch, feature
 ):
     from concurrent.futures import ProcessPoolExecutor
     import multiprocessing
-    from scripts.validate_3d import logged_recovery
-
-    with ProcessPoolExecutor(
-        max_workers=2, mp_context=multiprocessing.get_context("spawn")
-    ) as pool:
-        cpu_future = pool.submit(
-            logged_recovery, "cpu", 41, 41, 5000, tmp_path
-        )
-        gpu_future = pool.submit(
-            logged_recovery, "gpu", 42, 41, 5000, tmp_path
-        )
-        cpu, gpu = cpu_future.result(), gpu_future.result()
-    difference = abs(np.array(cpu["posterior_mean"]) - gpu["posterior_mean"])
-    standard_error = np.sqrt(
-        np.array(cpu["mc_se"]) ** 2 + np.array(gpu["mc_se"]) ** 2
-    )
-    # Ten batch means per independent chain; conservative Student-t df=9,
-    # 99% family coverage over the 27 predeclared central positions.
-    from scipy.stats import t
-
-    bound = t.ppf(1 - 0.01 / (2 * 27), df=9) * standard_error
+    from scripts.run_sampling_repair import run_chain, summarize
     import json
 
+    # Fresh independent chains. The old ten-dependent-batch bound is retained
+    # in historical reports, not used to waive convergence requirements.
+    monkeypatch.setenv("OPENBLAS_NUM_THREADS", "1")
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+
+    with ProcessPoolExecutor(
+        max_workers=8, mp_context=multiprocessing.get_context("spawn")
+    ) as pool:
+        futures = [
+            pool.submit(
+                run_chain,
+                tmp_path,
+                backend,
+                feature,
+                index,
+                "blocked",
+                False,
+                False,
+                8,
+            )
+            for backend in ("cpu", "gpu")
+            for index in range(4)
+        ]
+        for future in futures:
+            future.result()
+    result = summarize(tmp_path, 4, False)
     (tmp_path / "comparison.json").write_text(
-        json.dumps(
-            {
-                "cpu": cpu,
-                "gpu": gpu,
-                "difference": difference.tolist(),
-                "bound": bound.tolist(),
-            },
-            indent=2,
-        )
+        json.dumps(result, indent=2) + "\n"
     )
-    assert np.all(difference < bound), {
-        "cpu": cpu["sampling"],
-        "gpu": gpu["sampling"],
-        "trace_dir": str(tmp_path),
-        "difference": difference.tolist(),
-        "bound": bound.tolist(),
-    }
+    assert result["cpu"]["scientific_pass"], result["cpu"]["checkpoints"][-1]
+    assert result["gpu"]["scientific_pass"], result["gpu"]["checkpoints"][-1]
+    assert result["backend_agreement"]["nominal_pass"], result[
+        "backend_agreement"
+    ]
 
 
 @pytest.mark.unit
-def test_fixed_whitened_block_geometry_and_density(cupy_gpu):
+@pytest.mark.parametrize("block_size", [8, 16])
+def test_fixed_whitened_block_geometry_and_density(cupy_gpu, block_size):
     cp = cupy_gpu
     data = prepared(count=300)
     parameters = {
@@ -140,8 +138,8 @@ def test_fixed_whitened_block_geometry_and_density(cupy_gpu):
     with contextlib.redirect_stdout(io.StringIO()):
         cpu = f.initialization(parameters, data)
         gpu = f.initialization(parameters, data, backend="gpu")
-    f.prepare_block_proposals(cpu)
-    f.prepare_block_proposals(gpu)
+    f.prepare_block_proposals(cpu, block_size)
+    f.prepare_block_proposals(gpu, block_size)
     bound = 128 * np.finfo(float).eps * np.linalg.cond(cpu.cProposal)
     np.testing.assert_allclose(
         cp.asnumpy(gpu.block_directions),
@@ -158,10 +156,10 @@ def test_fixed_whitened_block_geometry_and_density(cupy_gpu):
         rtol=bound,
         atol=bound,
     )
-    change = 0.05 * np.sin(np.arange(16))
-    proposed = cpu.dIndu + cpu.block_directions[:, :16] @ change
+    change = 0.05 * np.sin(np.arange(block_size))
+    proposed = cpu.dIndu + cpu.block_directions[:, :block_size] @ change
     field = cpu.cDataIndu @ proposed
-    delta_field = cp.asarray(change) @ gpu.block_basis[:16]
+    delta_field = cp.asarray(change) @ gpu.block_basis[:block_size]
     actual = float(
         f.gpu_likelihood_difference(gpu.dData, delta_field, 1.0, gpu.a, 3)
     )

@@ -1,0 +1,89 @@
+EXACT POSTERIOR AND PROPOSAL GEOMETRY
+
+The repaired sampler keeps the original statistical model. Let R denote the
+existing regularized inducing covariance and B the inducing/observation kernel
+matrix. W=B.T R^-1 is the original inducing interpolation. The target is
+
+  pi(D_m) proportional to
+    Normal(D_m | mu, R)
+    product_j Normal(delta_r_j | 0, 2*(W D_m)_j*dt_j*I_d)
+    indicator(D_m>0 and W D_m>0).
+
+All dt_j are the original actual positive elapsed times. No drift, log-diffusion,
+localization-error inference, latent positions or new GP kernel is introduced.
+R and its existing jitter are unchanged. Gaussian normalization constants are
+retained in saved log densities and cancel from proposal log ratios.
+
+ADDITIVE INVERSE-COORDINATE COMPARISON
+
+The old proposal in alpha=R^-1 D_m uses delta_alpha=a*alpha_k*Z, with
+a~Exponential(epsilon_k), Z~Normal(0,1). It has state-dependent width and
+requires the existing conditional Hastings correction. In particular the
+width vanishes at alpha_k=0, an ordinary interior point of the physical field.
+
+The additive comparison uses delta_alpha=a*Z. For frozen epsilon, a has the
+same state-independent law in both directions; the conditional Gaussian and
+its exponential mixture are symmetric. Its Hastings correction is zero.
+It removes vanishing relative scales but does not remove alpha correlations.
+The CPU/CUDA posterior oracles validate both moments and marginal CDF values.
+
+FIXED PRECONDITIONED BLOCK METROPOLIS
+
+At a chain's valid initial field D_0, construct
+
+  R = L L.T
+  F = W.T diag(d / (2*(W D_0)^2)) W
+  H = I + L.T F L
+  H = G G.T
+  A = L G^-T.
+
+F is the expected likelihood information in inducing values. For a Gaussian
+diffusion increment, E[-d^2 logL/dD_j^2]=d/(2 D_j^2); elapsed time cancels only
+in this expectation, never in the actual transition likelihood.
+
+A.T (R^-1+F) A=I, verified independently on CPU and actual CUDA. This is only
+a proposal preconditioner. Neither F nor H replaces the exact target density.
+A is fixed once per chain, including throughout production. Different chains
+may have different fixed A and still target exactly the same pi.
+
+For a block of coordinates S, propose
+
+  u ~ Normal(0, epsilon_S^2 I)
+  D'_m = D_m + A[:,S] u
+  D'_obs = D_obs + (W A[:,S]) u.
+
+This is a symmetric Gaussian move in the fixed coordinates beta=A^-1 D_m.
+The transformation determinant is constant, so it cancels from the MH ratio.
+No state-dependent proposal covariance is used in production. Reject nonpositive
+inducing or observation values. Otherwise accept when
+
+  log U < (delta_log_likelihood + delta_log_prior) / temperature.
+
+For exact prior differences the implementation precomputes R^-1 A and
+A.T R^-1 A. Thus
+
+  delta_log_prior = -u.T A[:,S].T R^-1 (D_m-mu)
+                    -.5*u.T (A[:,S].T R^-1 A[:,S]) u.
+
+The likelihood difference is the original Gaussian algebra, evaluated on the
+complete observations with actual dt_j and d=3. CUDA parallelizes this sum;
+dependent blocks remain sequential. A random block permutation is drawn each
+sweep. Each MH block preserves the temperature-one target, as does their
+sequential composition and mixture over permutations.
+
+WARMUP AND PRODUCTION
+
+During warmup only, update log epsilon every 50 sweeps from the acceptance
+fraction in that recent window, using gain 2*(1+window_index)^(-.6). Targets
+are .30 while annealing and .25 at temperature one. Finite positive widths
+are required; invalid widths fail rather than being hidden by diffusion floors.
+Reset the window history at the temperature-one phase. Freeze every width
+before discarded equilibration and production. All production samples are at
+temperature one. The legacy cumulative-adaptation path remains available.
+
+These changes establish a correct proposal kernel, not a guarantee of adequate
+finite-chain mixing. Posterior quadrature, full-density proposal checks,
+multiple-chain convergence, physical recovery, and independent CPU/CUDA agreement
+remain separate gates. Acceptance rates or point-estimate recovery alone do not
+establish convergence. The failed block-size-16 campaign is retained, and the
+block-size-8 comparison uses the same predeclared cap, seeds and thresholds.

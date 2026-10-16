@@ -20,7 +20,9 @@ import functions as f
 import model
 
 
-def run_chain(directory, backend, feature, index, proposal, pilot, heldout):
+def run_chain(
+    directory, backend, feature, index, proposal, pilot, heldout, block_size=16
+):
     """Run one independent chain, preserving logs, all draws and warmup history."""
     directory = Path(directory)
     seed = (
@@ -77,6 +79,7 @@ def run_chain(directory, backend, feature, index, proposal, pilot, heldout):
                 backend=backend,
                 seed=seed,
                 proposal=proposal,
+                block_size=block_size,
                 adaptation="diminishing",
                 annealing_sweeps=500 if pilot else 2000,
                 adaptation_sweeps=4000,
@@ -120,6 +123,7 @@ def run_chain(directory, backend, feature, index, proposal, pilot, heldout):
         "data_seed": data_seed,
         "feature": feature,
         "proposal": proposal,
+        "block_size": block_size,
         "device": device,
         "seconds": time.perf_counter() - started,
         "map_rms": float(
@@ -322,6 +326,7 @@ def main():
         "--proposal", choices=("additive", "blocked"), required=True
     )
     parser.add_argument("--pilot", action="store_true")
+    parser.add_argument("--block-size", type=int, default=16)
     parser.add_argument("--heldout", action="store_true")
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -342,6 +347,7 @@ def main():
                     args.proposal,
                     args.pilot,
                     args.heldout,
+                    args.block_size,
                 )
                 for backend in ("cpu", "gpu")
                 for index in range(count)
@@ -353,16 +359,25 @@ def main():
                 [pool.submit(run_chain, *task) for task in tasks]
             ):
                 print(json.dumps(future.result()), flush=True)
+    print("Analyzing independent chains for both physical fields", flush=True)
+    with ProcessPoolExecutor(
+        max_workers=2, mp_context=multiprocessing.get_context("spawn")
+    ) as analysis:
+        summaries = {
+            name: analysis.submit(
+                summarize, args.directory / name, count, args.pilot
+            )
+            for name in ("uniform", "smooth")
+        }
+        cases = {name: future.result() for name, future in summaries.items()}
     results = {
         "proposal": args.proposal,
+        "block_size": args.block_size,
         "pilot": args.pilot,
         "heldout": args.heldout,
         "chains_per_backend": count,
         "checkpoints": [1000] if args.pilot else [5000, 10000, 20000],
-        "cases": {
-            name: summarize(args.directory / name, count, args.pilot)
-            for name in ("uniform", "smooth")
-        },
+        "cases": cases,
     }
     args.output.write_text(json.dumps(results, indent=2) + "\n")
     print(f"Wrote {args.output}", flush=True)
