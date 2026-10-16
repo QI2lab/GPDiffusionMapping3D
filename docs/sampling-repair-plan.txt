@@ -1,0 +1,82 @@
+SAMPLING REPAIR AUTHORIZATION AND GATES
+
+The user approved the proposed sampling repair plan with "Proceed" after the
+uniform/smooth burn-in investigation. This authorizes the staged changes below,
+overriding the earlier requirement to freeze adaptation and proposal design.
+It does not authorize changes to the likelihood, direct GP prior, covariance,
+regularization, interpolation, positivity support, or precision decision.
+The original CPU float64 / relative-proposal / legacy-adaptation path remains
+available as a reference. Changes are local on feat/3D; uv.lock remains ignored.
+
+1. Independent posterior oracles: one/two inducing values, independently
+   simulated 3D displacements, full normalized Gaussian densities plus GP prior,
+   high-order quadrature for moments and marginal CDFs. Compare 128/256 point
+   quadrature at rtol=1e-7, atol=1e-8. Four independent chains per backend.
+   Preserve prescribed seeds CPU101-104 / GPU201-204 and varied initial values.
+   Include an interior positive field with one zero inverse coefficient.
+   Sampling moments must meet 99% family MC intervals across <=32 checks.
+2. Stable warmup: updates of log epsilon from recent 50-sweep acceptance windows
+   with gain 2*(1+window_index)^(-0.6), target .30 annealing / .25 temperature one.
+   Explicit warmup lengths, then freeze widths for equilibration and production.
+   Record rejection reasons, mean proposal scales and accepted displacements.
+3. Investigate full 125-value uniform/smooth problems with unchanged data,
+   kernel, positivity and recovery target. Pilot is diagnostic, not a pass.
+   Full validation uses >=4 chains per backend with different positive GP-shaped
+   initial fields, predefined data/sampler seeds, and all monitored quantities.
+   Require rank/folded split R-hat <1.01, bulk/tail ESS >=400, mean MCSE below
+   5% of posterior SD; physical recovery still <10% RMS in the central cube.
+4. If tuning alone fails, symmetric additive inverse-coordinate proposals remove
+   the dependence on |alpha| and have zero Hastings correction. Recheck all
+   posterior oracles before higher-dimensional runs. If correlations remain,
+   evaluate blocked proposals in whitened coordinates with a fixed warmup
+   preconditioner, the same exact posterior, and fresh oracle validation.
+5. Compare effective samples per second and CPU/GPU agreement only after
+   convergence. Confirm using additional predefined seeds/datasets; no seed
+   selection or enlarged intervals to manufacture a pass. Elliptical slice
+   sampling is a later candidate, not automatically added to the application.
+
+Diagnostics follow Vehtari et al. https://arxiv.org/abs/1903.08008 and Geyer's
+initial monotone positive autocorrelation pairs. Two-chain exploratory reports
+from before this repair are retained; they are not production validation.
+Existing mathematical/physical CPU and required-CUDA suites must still pass.
+Stage 5 remains deferred until the repaired sampling is scientifically valid.
+
+Initial results before proposal changes:
+CPU posterior-oracle cases (1/2 parameters): 2 passed, 13.59 seconds.
+CUDA: scalar passed; two-parameter failed R-hat (max 1.01717 >1.01), despite
+acceptable moment agreement and per-coordinate acceptance .225-.301.
+Command: GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu/test_sampling.py tests/gpu/test_mathematics.py --strict-markers -q -x
+This failed run is preserved as evidence for the additive-proposal stage;
+the convergence threshold is not relaxed. Sandbox uv-cache-lock failure was
+retried outside the sandbox with the same environment after approval.
+
+Additive proposal plus diminishing adaptation passed both posterior-oracle
+cases on CPU and CUDA, including the positive field with a zero inverse
+coefficient. Combined run with the original mathematical checks: CPU 7 passed
+in 16.88 s, GPU 7 passed in 64.90 s. After adding independent one-step additive
+acceptance cases, those mathematical files passed 8 tests each (CPU 4.67 s,
+CUDA 2.46 s). These are separate commands, not additional independent datasets.
+
+Predeclared full-field protocol (before examining its outcomes):
+Pilot: two chains per backend per uniform/smooth case; 500 annealing, 4000
+temperature-one adaptation, 1000 discarded equilibration, 1000 production.
+Full validation: four chains per backend per case; 2000 annealing, 4000
+adaptation, 1000 equilibration and 20000 production. Examine the fixed
+5000/10000/20000 prefixes, but retain and report all 20000 draws. Quantities:
+all 125 inducing values, 125 inverse coefficients, 27 field sites, log posterior.
+Same 20k transitions and 5^3 grid, covLambda=.5, covL=1.5, original regularization.
+Development data seed41; sampler seeds CPU301-304 / GPU401-404. Initial fields
+are (.7,.9,1.1,1.3)*priorMean plus .2*priorCholesky*normal, using separate RNG
+seed sampler_seed+10000. Invalid initial fields cause failure, never clipping.
+Held-out confirmation: uniform regular-time data seed42 and smooth irregular
+fine-timestep data seed43 (10 internal steps); CPU1301-1304 / GPU1401-1404.
+Both local RTX3090s may be used, with synchronized CUDA checks on each device.
+Concurrent durations are not CPU/GPU speed benchmarks. No hardware fallback.
+
+If the additive pilot still shows correlation-limited exploration, the blocked
+candidate uses blocks of 16 prior-whitened and Fisher-preconditioned coordinates.
+The preconditioner is computed once per chain from the initial positive field
+and then fixed. In prior coordinates its precision is I+L.T*Fisher*L; it does
+not alter the GP covariance, jitter or target. Each block has a symmetric
+Gaussian proposal and its own warmup-tuned scale. Blocks are updated sequentially
+in randomized order. The identical oracle and convergence requirements apply.

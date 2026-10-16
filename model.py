@@ -49,6 +49,12 @@ def analyze(
     seed=None,
     dtype="float64",
     burn_in=0,
+    adaptation="legacy",
+    annealing_sweeps=None,
+    adaptation_sweeps=None,
+    diagnostics=False,
+    initial_inducing=None,
+    proposal="relative",
     **kwargs,
 ):
     """Run sequential Metropolis-within-Gibbs inference.
@@ -68,6 +74,17 @@ def analyze(
     burn_in : int, optional
         Additional discarded temperature-one sweeps after adaptation, with
         fixed proposal widths. The default is zero extra sweeps.
+    adaptation : {"legacy", "diminishing"}, optional
+        Legacy cumulative adaptation or experimental warmup log-width tuning.
+    annealing_sweeps, adaptation_sweeps : int or None, optional
+        Explicit warmup lengths. Defaults are twice nIter and 200 for legacy,
+        or twice nIter and 4000 for diminishing adaptation.
+    diagnostics : bool, optional
+        Record warmup widths, rejections and accepted coefficient displacements.
+    initial_inducing : numpy.ndarray or None, optional
+        Positive initial inducing field for independent-chain investigation.
+    proposal : {"relative", "additive"}, optional
+        Legacy state-dependent or symmetric additive inverse-coordinate moves.
     **kwargs
         Overrides of the existing model parameters.
 
@@ -83,6 +100,21 @@ def analyze(
 
     if not isinstance(burn_in, (int, np.integer)) or burn_in < 0:
         raise ValueError("burn_in must be a nonnegative integer")
+    if adaptation not in ("legacy", "diminishing"):
+        raise ValueError("adaptation must be legacy or diminishing")
+    if proposal not in ("relative", "additive"):
+        raise ValueError("proposal must be relative or additive")
+    burnIter = 2 * nIter if annealing_sweeps is None else annealing_sweeps
+    stabilizeIter = (
+        (200 if adaptation == "legacy" else 4000)
+        if adaptation_sweeps is None
+        else adaptation_sweeps
+    )
+    for length in (nIter, burnIter, stabilizeIter):
+        if not isinstance(length, (int, np.integer)) or length < 0:
+            raise ValueError("Iteration counts must be nonnegative integers")
+    if nIter == 0:
+        raise ValueError("Production sweeps must be positive")
 
     if dtype == "float32":
         import warnings
@@ -110,6 +142,42 @@ def analyze(
     variables = functions.initialization(
         parameters, data, backend=backend, dtype=dtype
     )
+    variables.proposal = proposal
+    if initial_inducing is not None:
+        xp = np
+        if backend == "gpu":
+            import cupy as cp
+
+            xp = cp
+        initial = xp.asarray(initial_inducing, dtype=dtype)
+        if initial.shape != variables.dIndu.shape or not bool(
+            xp.all(xp.isfinite(initial))
+        ):
+            raise ValueError(
+                "Initial inducing field must match the finite grid"
+            )
+        field = variables.cDataIndu @ initial
+        if bool(xp.any(initial <= 0)) or bool(xp.any(field <= 0)):
+            raise ValueError(
+                "Initial inducing and observed diffusion must be positive"
+            )
+        variables.dIndu = initial.copy()
+        variables.dData = field
+        variables.P = float(
+            functions.log_likelihood(
+                field,
+                variables.a,
+                xp.asarray(variables.delta_t),
+                variables.dimensions,
+                xp,
+            )
+            + functions.log_prior(
+                initial, variables.priorMean, variables.cInduInduInv
+            )
+        )
+    if diagnostics:
+        variables.proposal_stats = np.zeros((5, variables.nIndu))
+    warmup_trace = []
     endTime = time.time()
 
     # Progress Marker
@@ -117,8 +185,6 @@ def analyze(
     print("The flat MLE is: " + str(variables.mle))
 
     # Get number of iterations
-    burnIter = 2 * nIter
-    stabilizeIter = 200
 
     # Redefine perturbation magnitude for samples
     variables.epsilon = np.ones(np.shape(variables.dIndu))
@@ -126,7 +192,36 @@ def analyze(
 
     # Initial temp and cooling rate for targeted annealing
     initTemp = 7.5
-    coolRate = np.log(initTemp) / burnIter
+    coolRate = np.log(initTemp) / max(1, burnIter)
+    log_width = np.zeros(variables.nIndu)
+    window_acceptance = np.zeros(variables.nIndu)
+
+    def adapt_width(accepted, iteration, total, target, phase):
+        nonlocal window_acceptance, log_width
+        window_acceptance += accepted
+        if (iteration + 1) % 50 == 0 or iteration + 1 == total:
+            count = (iteration % 50) + 1
+            rate = window_acceptance / count
+            gain = 2.0 * (1 + iteration // 50) ** -0.6
+            log_width += gain * (rate - target)
+            variables.epsilon = np.exp(log_width)
+            if not np.all(np.isfinite(variables.epsilon)) or np.any(
+                variables.epsilon <= 0
+            ):
+                raise FloatingPointError(
+                    "Warmup proposal widths became invalid"
+                )
+            window_acceptance = np.zeros(variables.nIndu)
+            if diagnostics:
+                warmup_trace.append(
+                    (
+                        phase,
+                        iteration + 1,
+                        variables.epsilon.copy(),
+                        rate.copy(),
+                        variables.proposal_stats.copy(),
+                    )
+                )
 
     ## BURN IN 1 ##
     # Burn in super aggressively but do not save the samples,
@@ -141,13 +236,18 @@ def analyze(
         # Update proposal size for next iteration
         accVect += accCount
         accVectNorm = 100 * accVect / (i + 1)
-        variables.epsilon = np.where(
-            accVectNorm > 40,
-            variables.epsilon * 1.5,
-            np.where(
-                accVectNorm < 20, variables.epsilon * 0.5, variables.epsilon
-            ),
-        )
+        if adaptation == "diminishing":
+            adapt_width(accCount, i, burnIter, 0.3, "annealing")
+        else:
+            variables.epsilon = np.where(
+                accVectNorm > 40,
+                variables.epsilon * 1.5,
+                np.where(
+                    accVectNorm < 20,
+                    variables.epsilon * 0.5,
+                    variables.epsilon,
+                ),
+            )
 
         print(f"({time.time() - t:.3f}s)")
 
@@ -155,6 +255,7 @@ def analyze(
     # Set temperature back to 1 and acceptance to 0, and iterate
     # a few times to find ideal magnitude of proposal to maintain healthy acceptance
     variables.temperature = 1
+    window_acceptance = np.zeros(variables.nIndu)
     accVect = np.zeros(np.shape(variables.dIndu))
     for i in range(stabilizeIter):
         print(f"Stabilization Iteration {i + 1}/{stabilizeIter}", end=" ")
@@ -163,7 +264,9 @@ def analyze(
 
         # Update proposal size for next iteration
         accVect += accCount
-        if i > 10:
+        if adaptation == "diminishing":
+            adapt_width(accCount, i, stabilizeIter, 0.25, "adaptation")
+        elif i > 10:
             accVectNorm = 100 * accVect / (i + 1)
             variables.epsilon = np.where(
                 accVectNorm > 27.5,
@@ -189,6 +292,9 @@ def analyze(
     initial_inducing = host_array(variables.dIndu)
     initial_alpha = host_array(variables.cInduInduInv @ variables.dIndu)
     production_acceptance = np.zeros(variables.nIndu)
+    if diagnostics:
+        warmup_stats = variables.proposal_stats.copy()
+        variables.proposal_stats[:] = 0
 
     ## MCMC SAMPLING ##
 
@@ -234,7 +340,15 @@ def analyze(
         "initial_alpha": initial_alpha,
         "final_alpha": host_array(variables.cInduInduInv @ variables.dIndu),
         "acceptance_fraction": production_acceptance / nIter,
+        "adaptation": adaptation,
+        "proposal": proposal,
     }
+    if diagnostics:
+        map_variables.sampling_metadata["production_proposal_stats"] = (
+            variables.proposal_stats.copy()
+        )
+        map_variables.sampling_metadata["warmup_proposal_stats"] = warmup_stats
+        map_variables.warmup_trace = warmup_trace
 
     if backend == "gpu":
         import cupy as cp

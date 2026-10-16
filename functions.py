@@ -371,6 +371,8 @@ def diffusionPointSamplerSA_nb(
     covLambda,
     epsilon,
     temperature,
+    diagnostics=None,
+    additive=False,
 ):
     """
     Numba-compiled function for sampling in the inverse space.
@@ -429,24 +431,37 @@ def diffusionPointSamplerSA_nb(
         # Propose new alpha point
         oldAlphaPoint = alphaVect[pointIndex]
         a = np.random.exponential(epsilon[pointIndex])
-        alphaDiff = a * oldAlphaPoint * np.random.randn()
+        proposal_scale = a if additive else a * oldAlphaPoint
+        alphaDiff = proposal_scale * np.random.randn()
         newAlphaPoint = oldAlphaPoint + alphaDiff
+        if diagnostics is not None:
+            diagnostics[4, pointIndex] += abs(proposal_scale)
 
         # Incorporate new point into dInduNew and dDataNew
         dInduNew = dInduOld + cInduIndu[:, pointIndex] * alphaDiff
         dDataNew = dDataOld + cInduData[pointIndex, :] * alphaDiff
 
         # Make sure sampled diffusion values are all positive
-        if np.all(dDataNew > 0) and np.all(dInduNew > 0):
+        positive_inducing = np.all(dInduNew > 0)
+        positive_data = np.all(dDataNew > 0)
+        if diagnostics is not None:
+            if not positive_inducing:
+                diagnostics[0, pointIndex] += 1
+            elif not positive_data:
+                diagnostics[1, pointIndex] += 1
+        if positive_data and positive_inducing:
             # Probability of old and new function
             pOld = pOld
             pNew = probability(dInduNew, dDataNew)
 
             # Compute acceptance probability from tempered distribution
             logPosteriorRatio = pNew - pOld
-            logPropRatio = logNormpdf(
-                diff=alphaDiff, sigma=a * newAlphaPoint
-            ) - logNormpdf(diff=alphaDiff, sigma=a * oldAlphaPoint)
+            logPropRatio = (
+                0.0
+                if additive
+                else logNormpdf(diff=alphaDiff, sigma=a * newAlphaPoint)
+                - logNormpdf(diff=alphaDiff, sigma=a * oldAlphaPoint)
+            )
 
             # Apply simulated annealing by incorporating temperature
             if (logPosteriorRatio / temperature) + logPropRatio > np.log(
@@ -457,6 +472,10 @@ def diffusionPointSamplerSA_nb(
                 dDataOld = dDataNew
                 pOld = pNew
                 alphaVect[pointIndex] = newAlphaPoint
+                if diagnostics is not None:
+                    diagnostics[3, pointIndex] += alphaDiff**2
+            elif diagnostics is not None:
+                diagnostics[2, pointIndex] += 1
     return dInduOld, pOld, dDataOld, accCounter
 
 
@@ -514,6 +533,8 @@ def diffusionPointSampler(variables, data):
         covLambda,
         epsilon,
         temperature,
+        getattr(variables, "proposal_stats", None),
+        getattr(variables, "proposal", "relative") == "additive",
     )
     variables.dIndu = dIndu
     variables.P = P
@@ -625,15 +646,23 @@ def diffusionPointSampler_gpu(variables):
     mean_host = cp.asnumpy(v.priorMean)
     proposal_host = cp.asnumpy(v.cProposal)
     accepted = np.zeros(v.nIndu)
+    diagnostics = getattr(v, "proposal_stats", None)
     # Use the same host RNG for order and proposal draws. Two identically
     # seeded NumPy/Numba states would reuse random values across decisions.
     for k in indexShuffler.py_func(v.nIndu):
         old_alpha = alpha[k]
         scale = np.random.exponential(v.epsilon[k])
-        change = scale * old_alpha * np.random.randn()
+        proposal_scale = (
+            scale
+            if getattr(v, "proposal", "relative") == "additive"
+            else scale * old_alpha
+        )
+        change = proposal_scale * np.random.randn()
         if v.dData.dtype == cp.float32:
             change = np.float32(change)
         new_alpha = old_alpha + change
+        if diagnostics is not None:
+            diagnostics[4, k] += abs(proposal_scale)
         inducing = inducing_host + proposal_host[:, k] * change
         if np.all(inducing > 0):
             delta = float(
@@ -643,13 +672,17 @@ def diffusionPointSampler_gpu(variables):
             )
             # Exact quadratic-prior difference for a column of R, R^-1 R_k=e_k.
             if np.isneginf(delta):
+                if diagnostics is not None:
+                    diagnostics[1, k] += 1
                 continue  # Match CPU positivity rejection before an acceptance draw.
             delta += (
                 -change * (inducing_host - mean_host)[k]
                 - 0.5 * change**2 * proposal_host[k, k]
             )
-            correction = proposal_log_ratio(
-                change, scale, old_alpha, new_alpha
+            correction = (
+                0.0
+                if getattr(v, "proposal", "relative") == "additive"
+                else proposal_log_ratio(change, scale, old_alpha, new_alpha)
             )
             if delta / v.temperature + correction > np.log(np.random.rand()):
                 accepted[k] = 1
@@ -658,6 +691,12 @@ def diffusionPointSampler_gpu(variables):
                 inducing_host = inducing
                 v.P += delta
                 alpha[k] = new_alpha
+                if diagnostics is not None:
+                    diagnostics[3, k] += change**2
+            elif diagnostics is not None:
+                diagnostics[2, k] += 1
+        elif diagnostics is not None:
+            diagnostics[0, k] += 1
     print(f"{100 * accepted.mean():.2f}%", end=" ")
     return v, accepted
 

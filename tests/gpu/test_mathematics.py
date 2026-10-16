@@ -38,7 +38,10 @@ def test_full_density_and_nonpositive_diffusion(cupy_gpu):
 
 
 @pytest.mark.parametrize("seed", [11, 12, 13])
-def test_actual_metropolis_step_against_independent_density(cupy_gpu, seed):
+@pytest.mark.parametrize("additive", [False, True])
+def test_actual_metropolis_step_against_independent_density(
+    cupy_gpu, seed, additive
+):
     from types import SimpleNamespace
 
     cp = cupy_gpu
@@ -46,7 +49,7 @@ def test_actual_metropolis_step_against_independent_density(cupy_gpu, seed):
     rng.random_sample()  # The prescribed one-element shuffle consumes a uniform.
     alpha = 0.6
     scale = rng.exponential(0.2)
-    change = scale * alpha * rng.randn()
+    change = scale * (1.0 if additive else alpha) * rng.randn()
     old = np.array([1.2])
     field = np.array([0.24, 0.36])
     new = old + 2 * change
@@ -63,9 +66,10 @@ def test_actual_metropolis_step_against_independent_density(cupy_gpu, seed):
     accept = False
     if np.all(new > 0) and np.all(proposed > 0):
         ratio = (density(new, proposed) - old_p) / 2
-        ratio += stats.norm.logpdf(
-            change, scale=abs(scale * (alpha + change))
-        ) - stats.norm.logpdf(change, scale=abs(scale * alpha))
+        if not additive:
+            ratio += stats.norm.logpdf(
+                change, scale=abs(scale * (alpha + change))
+            ) - stats.norm.logpdf(change, scale=abs(scale * alpha))
         accept = ratio > np.log(rng.rand())
     v = SimpleNamespace(
         nIndu=1,
@@ -80,6 +84,7 @@ def test_actual_metropolis_step_against_independent_density(cupy_gpu, seed):
         temperature=2.0,
         dimensions=2,
         P=old_p,
+        proposal="additive" if additive else "relative",
     )
     np.random.seed(seed)
     v, accepted = f.diffusionPointSampler_gpu(v)

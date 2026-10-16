@@ -86,7 +86,8 @@ def test_kernel_regularization_interpolation_and_prior():
 
 
 @pytest.mark.parametrize("seed", [11, 12, 13])
-def test_single_metropolis_proposal_against_full_density(seed):
+@pytest.mark.parametrize("additive", [False, True])
+def test_single_metropolis_proposal_against_full_density(seed, additive):
     # One transformed coefficient: compute every random input and the target
     # density independently, including the conditional proposal correction.
     rng = np.random.RandomState(seed)
@@ -104,7 +105,7 @@ def test_single_metropolis_proposal_against_full_density(seed):
     temperature = 2.0
     alpha = 0.6
     scale = rng.exponential(0.2)
-    change = scale * alpha * rng.randn()
+    change = scale * (1.0 if additive else alpha) * rng.randn()
     new = old + covariance[:, 0] * change
     proposed = field + cross[0] * change
     density = lambda d, b: (
@@ -120,9 +121,10 @@ def test_single_metropolis_proposal_against_full_density(seed):
     expected_accept = False
     if np.all(new > 0) and np.all(proposed > 0):
         ratio = (density(new, proposed) - old_p) / temperature
-        ratio += stats.norm.logpdf(
-            change, scale=abs(scale * (alpha + change))
-        ) - stats.norm.logpdf(change, scale=abs(scale * alpha))
+        if not additive:
+            ratio += stats.norm.logpdf(
+                change, scale=abs(scale * (alpha + change))
+            ) - stats.norm.logpdf(change, scale=abs(scale * alpha))
         expected_accept = ratio > np.log(rng.rand())
     f.seed_sampler(seed)
     result = f.diffusionPointSamplerSA_nb(
@@ -143,6 +145,8 @@ def test_single_metropolis_proposal_against_full_density(seed):
         0.5,
         epsilon,
         temperature,
+        None,
+        additive,
     )
     np.testing.assert_allclose(
         result[0], new if expected_accept else old, rtol=2e-14
