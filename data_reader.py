@@ -7,16 +7,16 @@ from types import SimpleNamespace
 # THIS IS THE OBJECT OF DATA
 DATA = {
     # NEED TO BE LOADED IN
-    'trajectories': None,       # Coordinates of the data
-    'trajectoriesIndex': None,  # Index of trajectory number
-    'deltaT': None,             # Time passed in between each frame of data
-
+    "trajectories": None,  # Coordinates of the data
+    "trajectoriesIndex": None,  # Index of trajectory number
+    "deltaT": None,  # Time passed in between each frame of data
     # INITIALIZED INDEPENDENTLY BASED ON PARAMETERS ABOVE
-    'nData': None,              # Number of data points (set to len(nData))
-    'nTrajectories': None,      # Number of trajectories (set to len(np.unique(data.trajectoriesIndex)))
+    "nData": None,  # Number of data points (set to len(nData))
+    "nTrajectories": None,  # Number of trajectories (set to len(np.unique(data.trajectoriesIndex)))
 }
 
-def data_reader(path, scale=1, deltaT = 1/30):
+
+def data_reader(path, scale=1, deltaT=1 / 30):
     """
     Read data from a CSV file and prepare it for further processing.
 
@@ -30,16 +30,16 @@ def data_reader(path, scale=1, deltaT = 1/30):
     """
 
     # Read the CSV file, considering the header
-    data = np.genfromtxt(path, delimiter=', ', skip_header=1)
+    data = np.genfromtxt(path, delimiter=", ", skip_header=1)
 
     # Separate columns into individual arrays
     dataVectIndex = data[:, 0]
     dataVect = data[:, 1:]
-    
+
     # Localization adjustment to nanometers
-    dataVect = dataVect[::]*scale
+    dataVect = dataVect[::] * scale
     dataVectIndex = dataVectIndex[::]
-    
+
     # Put time step manually as unavailable from data file
     deltaT = deltaT
 
@@ -52,6 +52,7 @@ def data_reader(path, scale=1, deltaT = 1/30):
     data.nTrajectories = len(np.unique(data.trajectoriesIndex))
 
     return data
+
 
 def prepare_tracks(particles, positions, timestamps, scale=1):
     """Prepare sorted within-particle 2D or ZYX 3D transitions.
@@ -72,41 +73,74 @@ def prepare_tracks(particles, positions, timestamps, scale=1):
     types.SimpleNamespace
         Sorted tracks, consecutive start/end positions and positive elapsed times.
     """
-    coordinates=np.asarray(positions,dtype=np.float64)
-    times=np.asarray(timestamps,dtype=np.float64)
-    identities=np.asarray(particles,dtype=object)
-    if coordinates.ndim!=2 or coordinates.shape[1] not in (2,3):
+    coordinates = np.asarray(positions, dtype=np.float64)
+    raw_times = np.asarray(timestamps)
+    if np.issubdtype(raw_times.dtype, np.datetime64) or np.issubdtype(
+        raw_times.dtype, np.timedelta64
+    ):
+        raise ValueError(
+            "Timestamps must be numeric seconds, not datetime values"
+        )
+    times = np.asarray(raw_times, dtype=np.float64)
+    identities = np.asarray(particles, dtype=object)
+    if coordinates.ndim != 2 or coordinates.shape[1] not in (2, 3):
         raise ValueError("Positions must have two XY or three ZYX columns")
-    if times.ndim!=1 or identities.ndim!=1 or len(times)!=len(coordinates) or len(identities)!=len(times):
+    if (
+        times.ndim != 1
+        or identities.ndim != 1
+        or len(times) != len(coordinates)
+        or len(identities) != len(times)
+    ):
         raise ValueError("Particle, position and timestamp rows must agree")
-    if not np.isfinite(scale) or scale<=0:
+    if not np.isfinite(scale) or scale <= 0:
         raise ValueError("scale must be finite and positive")
-    coordinates=coordinates*scale
+    coordinates = coordinates * scale
     if not np.all(np.isfinite(coordinates)) or not np.all(np.isfinite(times)):
         raise ValueError("Positions and numeric timestamps must be finite")
-    groups={}
-    for i,identity in enumerate(identities):
-        if identity is None or (isinstance(identity, str) and not identity) or (isinstance(identity,(float,np.floating)) and not np.isfinite(identity)):
+    groups = {}
+    for i, identity in enumerate(identities):
+        if (
+            identity is None
+            or (isinstance(identity, str) and not identity)
+            or (
+                isinstance(identity, (float, np.floating))
+                and not np.isfinite(identity)
+            )
+        ):
             raise ValueError("Particle identities must not be missing")
-        groups.setdefault(identity,[]).append(i)
-    order=[]; starts=[]; ends=[]; intervals=[]
+        groups.setdefault(identity, []).append(i)
+    order = []
+    starts = []
+    ends = []
+    intervals = []
     for indices in groups.values():
-        indices=np.asarray(indices,dtype=np.int64)
-        indices=indices[np.argsort(times[indices],kind='stable')]
-        tau=np.diff(times[indices])
-        if not np.all(np.isfinite(tau)) or np.any(tau<=0):
-            raise ValueError("Each particle must have strictly increasing distinct timestamps")
+        indices = np.asarray(indices, dtype=np.int64)
+        indices = indices[np.argsort(times[indices], kind="stable")]
+        tau = np.diff(times[indices])
+        if not np.all(np.isfinite(tau)) or np.any(tau <= 0):
+            raise ValueError(
+                "Each particle must have strictly increasing distinct timestamps"
+            )
         order.extend(indices)
-        if len(indices)>1:
+        if len(indices) > 1:
             starts.append(coordinates[indices[:-1]])
             ends.append(coordinates[indices[1:]])
             intervals.append(tau)
     if not intervals:
-        raise ValueError("Tracks must contain at least one positive-time transition")
-    return SimpleNamespace(trajectories=coordinates[order],trajectoriesIndex=identities[order],
-        timestamps=times[order],nData=len(times),nTrajectories=len(groups),
-        dimensions=coordinates.shape[1],starts=np.concatenate(starts),ends=np.concatenate(ends),
-        delta_t=np.concatenate(intervals))
+        raise ValueError(
+            "Tracks must contain at least one positive-time transition"
+        )
+    return SimpleNamespace(
+        trajectories=coordinates[order],
+        trajectoriesIndex=identities[order],
+        timestamps=times[order],
+        nData=len(times),
+        nTrajectories=len(groups),
+        dimensions=coordinates.shape[1],
+        starts=np.concatenate(starts),
+        ends=np.concatenate(ends),
+        delta_t=np.concatenate(intervals),
+    )
 
 
 def data_reader_3d(path, scale=1):
@@ -114,15 +148,18 @@ def data_reader_3d(path, scale=1):
     import csv
     from pathlib import Path
 
-    with Path(path).open(newline='') as stream:
-        reader=csv.DictReader(stream)
-        required=('particle #','z','y','x','timestamp')
+    with Path(path).open(newline="") as stream:
+        reader = csv.DictReader(stream)
+        required = ("particle #", "z", "y", "x", "timestamp")
         if not set(required).issubset(reader.fieldnames or ()):
             raise ValueError(f"3D CSV requires columns {required}")
-        rows=list(reader)
+        rows = list(reader)
     try:
-        return prepare_tracks([row['particle #'] for row in rows],
-            [[float(row[c]) for c in ('z','y','x')] for row in rows],
-            [float(row['timestamp']) for row in rows],scale=scale)
-    except (TypeError,ValueError) as error:
+        return prepare_tracks(
+            [row["particle #"] for row in rows],
+            [[float(row[c]) for c in ("z", "y", "x")] for row in rows],
+            [float(row["timestamp"]) for row in rows],
+            scale=scale,
+        )
+    except (TypeError, ValueError) as error:
         raise ValueError(f"Invalid timestamped 3D tracks: {error}") from error

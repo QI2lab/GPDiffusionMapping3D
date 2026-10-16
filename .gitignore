@@ -160,3 +160,6 @@ cython_debug/
 #.idea/
 
 /uv.lock
+
+# Local scientific traces and progress logs
+/validation_artifacts/

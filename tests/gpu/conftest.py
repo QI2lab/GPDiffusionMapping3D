@@ -13,7 +13,7 @@ def cupy_gpu():
 
         device = cp.cuda.Device(0)
         device.use()
-        result = cp.sum(cp.arange(32, dtype=cp.float64)**2)
+        result = cp.sum(cp.arange(32, dtype=cp.float64) ** 2)
         device.synchronize()
         value = float(result.get())
     except Exception as error:

@@ -7,6 +7,7 @@ import numba as nb
 # Set seed
 np.random.seed(42)
 
+
 # Function that determines temperature for simulated annealing
 def expCooling(iteration, initialTemp, coolRate):
     """
@@ -22,6 +23,7 @@ def expCooling(iteration, initialTemp, coolRate):
     """
     return initialTemp * np.exp(-coolRate * iteration)
 
+
 # Function that calculates unnormalized logpdf of Normal distribution assuming n=1
 @nb.njit(cache=True)
 def logNormpdf(diff, sigma):
@@ -36,6 +38,7 @@ def logNormpdf(diff, sigma):
     - Unnormalized log pdf value.
     """
     return -np.log(np.abs(sigma)) - 0.5 * (diff / sigma) ** 2
+
 
 # Function that randomizes index sequence for point sampler
 @nb.njit(cache=True)
@@ -54,6 +57,7 @@ def indexShuffler(length):
         j = int(np.random.random() * (length - i)) + i
         indices[i], indices[j] = indices[j], indices[i]
     return indices
+
 
 # Create a covariance matrix based on data at hand
 @nb.njit(cache=True)
@@ -75,10 +79,15 @@ def covMat(coordinates1, coordinates2, covLambda, covL):
         for j in range(len(coordinates2)):
             dist_squared = 0.0
             for axis in range(coordinates1.shape[1]):
-                dist_squared += (coordinates1[i, axis] - coordinates2[j, axis]) ** 2
+                dist_squared += (
+                    coordinates1[i, axis] - coordinates2[j, axis]
+                ) ** 2
             dist = np.sqrt(dist_squared)
-            C[i, j] = (covLambda ** 2) * (np.exp(((-0.5) * ((dist) ** 2)) / (covL ** 2)))
+            C[i, j] = (covLambda**2) * (
+                np.exp(((-0.5) * ((dist) ** 2)) / (covL**2))
+            )
     return C
+
 
 # Initialize sampler parameters
 def initialization(variables, data, backend="cpu", dtype="float64"):
@@ -95,11 +104,16 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
 
     if backend not in ("cpu", "gpu"):
         raise ValueError("backend must be cpu or gpu")
-    if dtype not in ("float64", "float32") or (backend == "cpu" and dtype != "float64"):
-        raise ValueError("CPU requires float64; GPU evaluation supports float64 or float32")
+    if dtype not in ("float64", "float32") or (
+        backend == "cpu" and dtype != "float64"
+    ):
+        raise ValueError(
+            "CPU requires float64; GPU evaluation supports float64 or float32"
+        )
     xp = np
     if backend == "gpu":
         import cupy as cp
+
         cp.cuda.Device().use()
         xp = cp
 
@@ -130,8 +144,12 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
 
     # Identical consecutive within-track pairs, without quadratic vstack copies.
     paired = trajectoriesIndex[:-1] == trajectoriesIndex[1:]
-    dataCoordinates = np.ascontiguousarray(data.starts if hasattr(data, "starts") else trajectories[:-1][paired])
-    sampleCoordinates = np.ascontiguousarray(data.ends if hasattr(data, "ends") else trajectories[1:][paired])
+    dataCoordinates = np.ascontiguousarray(
+        data.starts if hasattr(data, "starts") else trajectories[:-1][paired]
+    )
+    sampleCoordinates = np.ascontiguousarray(
+        data.ends if hasattr(data, "ends") else trajectories[1:][paired]
+    )
 
     # Find MLE assuming flat map
     diff = sampleCoordinates - dataCoordinates
@@ -165,14 +183,22 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
         # Coordinates are explicitly ZYX. Timestamp is never a spatial axis.
         low = trajectories.min(axis=0)
         high = trajectories.max(axis=0)
-        axes = [np.linspace(low[0], high[0], variables.nInduZ),
-                np.linspace(low[1], high[1], nInduY),
-                np.linspace(low[2], high[2], nInduX)]
-        induCoordinates = np.stack(np.meshgrid(*axes, indexing="ij"), axis=-1).reshape(-1, 3)
-        axes = [np.linspace(low[0], high[0], variables.nFineZ),
-                np.linspace(low[1], high[1], nFineY),
-                np.linspace(low[2], high[2], nFineX)]
-        fineCoordinates = np.stack(np.meshgrid(*axes, indexing="ij"), axis=-1).reshape(-1, 3)
+        axes = [
+            np.linspace(low[0], high[0], variables.nInduZ),
+            np.linspace(low[1], high[1], nInduY),
+            np.linspace(low[2], high[2], nInduX),
+        ]
+        induCoordinates = np.stack(
+            np.meshgrid(*axes, indexing="ij"), axis=-1
+        ).reshape(-1, 3)
+        axes = [
+            np.linspace(low[0], high[0], variables.nFineZ),
+            np.linspace(low[1], high[1], nFineY),
+            np.linspace(low[2], high[2], nFineX),
+        ]
+        fineCoordinates = np.stack(
+            np.meshgrid(*axes, indexing="ij"), axis=-1
+        ).reshape(-1, 3)
         nIndu = len(induCoordinates)
 
     # Set up initial sample and mean of prior
@@ -203,7 +229,9 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
     cInduIndu = kernel(induCoordinates, induCoordinates, covLambda, covL)
     cInduData = kernel(induCoordinates, dataCoordinates, covLambda, covL)
     cInduFine = kernel(induCoordinates, fineCoordinates, covLambda, covL)
-    cProposal = cInduIndu + epsilon * xp.mean(cInduIndu) * xp.eye(nIndu, dtype=dtype)
+    cProposal = cInduIndu + epsilon * xp.mean(cInduIndu) * xp.eye(
+        nIndu, dtype=dtype
+    )
     cInduInduInv = xp.linalg.inv(cProposal)
     cDataIndu = cInduData.T @ cInduInduInv
     cInduInduChol = xp.linalg.cholesky(cProposal)
@@ -213,26 +241,48 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
     dMleData = a * (2 / dimensions)
 
     @nb.jit(cache=True, nopython=True)
-    def compute_vector(induCoordinates, dataCoordinates, covLambda, covL, dMleData, dIndu, nIndu, cDataIndu, smoother=1):
+    def compute_vector(
+        induCoordinates,
+        dataCoordinates,
+        covLambda,
+        covL,
+        dMleData,
+        dIndu,
+        nIndu,
+        cDataIndu,
+        smoother=1,
+    ):
 
         # Set up matrix for interpolation
-        cInduDataInterpolate = covMat(induCoordinates, dataCoordinates, covLambda, covL / smoother)
+        cInduDataInterpolate = covMat(
+            induCoordinates, dataCoordinates, covLambda, covL / smoother
+        )
 
         # Find smoothing
         for i in range(nIndu):
-            dIndu[i] = np.sum(dMleData * cInduDataInterpolate[i]) / np.sum(cInduDataInterpolate[i])
+            dIndu[i] = np.sum(dMleData * cInduDataInterpolate[i]) / np.sum(
+                cInduDataInterpolate[i]
+            )
 
         dData = cDataIndu @ dIndu
 
         return dIndu, dData
 
-    def calculate_log_posterior(dataCoordinates, sampleCoordinates, dData, deltaT, dIndu, priorMean, cInduInduInv):
+    def calculate_log_posterior(
+        dataCoordinates,
+        sampleCoordinates,
+        dData,
+        deltaT,
+        dIndu,
+        priorMean,
+        cInduInduInv,
+    ):
         # Likelihood of the data
         lhood = np.sum(
             stats.norm.logpdf(
                 sampleCoordinates,
                 loc=dataCoordinates,
-                scale=np.sqrt(2 * np.vstack((dData, dData)).T * deltaT)
+                scale=np.sqrt(2 * np.vstack((dData, dData)).T * deltaT),
             )
         )
 
@@ -247,21 +297,36 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
 
     if backend == "cpu":
         dIndu, dData = compute_vector(
-            induCoordinates, dataCoordinates, covLambda, covL, dMleData,
-            dIndu, nIndu, cDataIndu)
+            induCoordinates,
+            dataCoordinates,
+            covLambda,
+            covL,
+            dMleData,
+            dIndu,
+            nIndu,
+            cDataIndu,
+        )
     else:
         dIndu = (cInduData @ dMleData) / xp.sum(cInduData, axis=1)
         dData = cDataIndu @ dIndu
     if bool(xp.any(dData <= 0)) or bool(xp.any(dIndu <= 0)):
-        raise ValueError("Initialization requires positive inducing and interpolated diffusion")
-    P = float(log_likelihood(dData, a, xp.asarray(deltaT, dtype=dtype), dimensions, xp)
-              + log_prior(dIndu, priorMean, cInduInduInv))
+        raise ValueError(
+            "Initialization requires positive inducing and interpolated diffusion"
+        )
+    P = float(
+        log_likelihood(
+            dData, a, xp.asarray(deltaT, dtype=dtype), dimensions, xp
+        )
+        + log_prior(dIndu, priorMean, cInduInduInv)
+    )
     variables.dimensions = dimensions
     variables.delta_t = np.broadcast_to(deltaT, (len(dataCoordinates),)).copy()
     variables.backend = backend
     variables.a = a
 
-    print(f"The initial probability is {P} and there are {nIndu} inducing points.")
+    print(
+        f"The initial probability is {P} and there are {nIndu} inducing points."
+    )
 
     # Save all variable parameters
     variables.nIndu = nIndu
@@ -286,9 +351,27 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
 
     return variables
 
+
 @nb.jit(nopython=True, cache=True)
-def diffusionPointSamplerSA_nb(nIndu, cInduIndu, cInduData, cInduInduInv, cDataIndu, deltaT, means, samples, data, chol,
-                               dInduOld, pOld, dDataOld, priorMean, covLambda, epsilon, temperature):
+def diffusionPointSamplerSA_nb(
+    nIndu,
+    cInduIndu,
+    cInduData,
+    cInduInduInv,
+    cDataIndu,
+    deltaT,
+    means,
+    samples,
+    data,
+    chol,
+    dInduOld,
+    pOld,
+    dDataOld,
+    priorMean,
+    covLambda,
+    epsilon,
+    temperature,
+):
     """
     Numba-compiled function for sampling in the inverse space.
 
@@ -325,10 +408,9 @@ def diffusionPointSamplerSA_nb(nIndu, cInduIndu, cInduData, cInduInduInv, cDataI
         lhood = 0
         for i in range(samples.shape[0]):
             for j in range(samples.shape[1]):
-                lhood += (
-                    -0.5 * (samples[i, j] - means[i, j]) ** 2 / (2 * dData_[i] * deltaT[i])
-                    - 0.5 * np.log(2 * np.pi * 2 * dData_[i] * deltaT[i])
-                )
+                lhood += -0.5 * (samples[i, j] - means[i, j]) ** 2 / (
+                    2 * dData_[i] * deltaT[i]
+                ) - 0.5 * np.log(2 * np.pi * 2 * dData_[i] * deltaT[i])
         prob = lhood + prior
 
         return prob
@@ -344,7 +426,6 @@ def diffusionPointSamplerSA_nb(nIndu, cInduIndu, cInduData, cInduInduInv, cDataI
 
     # Propose new dIndu by sampling random points in inverse space
     for pointIndex in shuffledIndex:
-
         # Propose new alpha point
         oldAlphaPoint = alphaVect[pointIndex]
         a = np.random.exponential(epsilon[pointIndex])
@@ -357,18 +438,20 @@ def diffusionPointSamplerSA_nb(nIndu, cInduIndu, cInduData, cInduInduInv, cDataI
 
         # Make sure sampled diffusion values are all positive
         if np.all(dDataNew > 0) and np.all(dInduNew > 0):
-
             # Probability of old and new function
             pOld = pOld
             pNew = probability(dInduNew, dDataNew)
 
             # Compute acceptance probability from tempered distribution
             logPosteriorRatio = pNew - pOld
-            logPropRatio = (logNormpdf(diff = alphaDiff, sigma = a * newAlphaPoint) 
-            - logNormpdf(diff = alphaDiff, sigma = a * oldAlphaPoint))
+            logPropRatio = logNormpdf(
+                diff=alphaDiff, sigma=a * newAlphaPoint
+            ) - logNormpdf(diff=alphaDiff, sigma=a * oldAlphaPoint)
 
             # Apply simulated annealing by incorporating temperature
-            if (logPosteriorRatio / temperature) + logPropRatio > np.log(np.random.rand()):
+            if (logPosteriorRatio / temperature) + logPropRatio > np.log(
+                np.random.rand()
+            ):
                 accCounter[pointIndex] = 1
                 dInduOld = dInduNew
                 dDataOld = dDataNew
@@ -413,9 +496,25 @@ def diffusionPointSampler(variables, data):
     temperature = variables.temperature
 
     # Run numba version
-    dIndu, P, dData, accCount = diffusionPointSamplerSA_nb(nIndu, cInduIndu, cInduData, cInduInduInv, cDataIndu,
-                                                            deltaT, means, samples, data, chol, dInduOld, P,
-                                                            dData, priorMean, covLambda, epsilon, temperature)
+    dIndu, P, dData, accCount = diffusionPointSamplerSA_nb(
+        nIndu,
+        cInduIndu,
+        cInduData,
+        cInduInduInv,
+        cDataIndu,
+        deltaT,
+        means,
+        samples,
+        data,
+        chol,
+        dInduOld,
+        P,
+        dData,
+        priorMean,
+        covLambda,
+        epsilon,
+        temperature,
+    )
     variables.dIndu = dIndu
     variables.P = P
     variables.dData = dData
@@ -427,15 +526,18 @@ def diffusionPointSampler(variables, data):
     return variables, accCount
 
 
-
 def covMat_gpu(coordinates1, coordinates2, covLambda, covL):
     """Evaluate the existing spatial RBF on CUDA using CuPy built-ins."""
     import cupy as cp
 
-    squared = cp.zeros((len(coordinates1), len(coordinates2)), dtype=coordinates1.dtype)
+    squared = cp.zeros(
+        (len(coordinates1), len(coordinates2)), dtype=coordinates1.dtype
+    )
     for axis in range(coordinates1.shape[1]):
-        squared += (coordinates1[:, axis, None] - coordinates2[None, :, axis])**2
-    return covLambda**2 * cp.exp(-.5 * squared / covL**2)
+        squared += (
+            coordinates1[:, axis, None] - coordinates2[None, :, axis]
+        ) ** 2
+    return covLambda**2 * cp.exp(-0.5 * squared / covL**2)
 
 
 def log_likelihood(diffusion, a, delta_t, dimensions=2, xp=np):
@@ -444,30 +546,35 @@ def log_likelihood(diffusion, a, delta_t, dimensions=2, xp=np):
         delta_t = xp.asarray(delta_t, dtype=diffusion.dtype)
     if bool(xp.any(diffusion <= 0)):
         return -xp.inf
-    return -xp.sum(dimensions / 2 * xp.log(diffusion) + a / diffusion
-                   + dimensions / 2 * xp.log(4 * xp.pi * delta_t))
+    return -xp.sum(
+        dimensions / 2 * xp.log(diffusion)
+        + a / diffusion
+        + dimensions / 2 * xp.log(4 * xp.pi * delta_t)
+    )
 
 
 def log_prior(diffusion, mean, inverse):
     """Evaluate the original unnormalized direct GP prior."""
     difference = diffusion - mean
-    return -.5 * (difference @ (inverse @ difference))
+    return -0.5 * (difference @ (inverse @ difference))
 
 
 def likelihood_difference(old, new, a, dimensions=2, xp=np):
     """Evaluate a proposal ratio directly without subtracting total densities."""
     if bool(xp.any(new <= 0)):
         return -xp.inf
-    return xp.sum(-dimensions / 2 * xp.log(new / old)
-                  - a * (1 / new - 1 / old))
+    return xp.sum(
+        -dimensions / 2 * xp.log(new / old) - a * (1 / new - 1 / old)
+    )
 
 
 def proposal_log_ratio(change, scale, old, new):
     """Return the original conditional proposal-density correction."""
     if old == 0 or new == 0:
         return -np.inf
-    return float(logNormpdf(change, scale * new)
-                 - logNormpdf(change, scale * old))
+    return float(
+        logNormpdf(change, scale * new) - logNormpdf(change, scale * old)
+    )
 
 
 _proposal_reduction = None
@@ -487,7 +594,11 @@ def gpu_likelihood_difference(old, column, change, a, dimensions=2):
                 "old + column * change > 0 ? "
                 "-half_dimension * logf((old + column * change) / old) "
                 "-a * (1.0f / (old + column * change) - 1.0f / old) : -(1.0f/0.0f)",
-                "a + b", "result = a", "0", "gpd_proposal_float32_spatial")
+                "a + b",
+                "result = a",
+                "0",
+                "gpd_proposal_float32_spatial",
+            )
         return _proposal_reduction32(old, column, change, a, dimensions / 2)
     if _proposal_reduction is None:
         _proposal_reduction = cp.ReductionKernel(
@@ -496,7 +607,11 @@ def gpu_likelihood_difference(old, column, change, a, dimensions=2):
             "old + column * change > 0 ? "
             "-half_dimension * log((old + column * change) / old) "
             "-a * (1.0 / (old + column * change) - 1.0 / old) : -(1.0/0.0)",
-            "a + b", "result = a", "0", "gpd_proposal_float64_spatial")
+            "a + b",
+            "result = a",
+            "0",
+            "gpd_proposal_float64_spatial",
+        )
     return _proposal_reduction(old, column, change, a, dimensions / 2)
 
 
@@ -521,13 +636,21 @@ def diffusionPointSampler_gpu(variables):
         new_alpha = old_alpha + change
         inducing = inducing_host + proposal_host[:, k] * change
         if np.all(inducing > 0):
-            delta = float(gpu_likelihood_difference(v.dData, v.cInduData[k], change, v.a, v.dimensions))
+            delta = float(
+                gpu_likelihood_difference(
+                    v.dData, v.cInduData[k], change, v.a, v.dimensions
+                )
+            )
             # Exact quadratic-prior difference for a column of R, R^-1 R_k=e_k.
             if np.isneginf(delta):
                 continue  # Match CPU positivity rejection before an acceptance draw.
-            delta += (-change * (inducing_host - mean_host)[k]
-                      -.5 * change**2 * proposal_host[k, k])
-            correction = proposal_log_ratio(change, scale, old_alpha, new_alpha)
+            delta += (
+                -change * (inducing_host - mean_host)[k]
+                - 0.5 * change**2 * proposal_host[k, k]
+            )
+            correction = proposal_log_ratio(
+                change, scale, old_alpha, new_alpha
+            )
             if delta / v.temperature + correction > np.log(np.random.rand()):
                 accepted[k] = 1
                 v.dIndu += v.cProposal[:, k] * change
