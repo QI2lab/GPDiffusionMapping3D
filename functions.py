@@ -78,7 +78,7 @@ def covMat(coordinates1, coordinates2, covLambda, covL):
     return C
 
 # Initialize sampler parameters
-def initialization(variables, data, backend="cpu"):
+def initialization(variables, data, backend="cpu", dtype="float64"):
     """
     Initialize parameters for the sampler.
 
@@ -92,6 +92,8 @@ def initialization(variables, data, backend="cpu"):
 
     if backend not in ("cpu", "gpu"):
         raise ValueError("backend must be cpu or gpu")
+    if dtype not in ("float64", "float32") or (backend == "cpu" and dtype != "float64"):
+        raise ValueError("CPU requires float64; GPU evaluation supports float64 or float32")
     xp = np
     if backend == "gpu":
         import cupy as cp
@@ -158,28 +160,38 @@ def initialization(variables, data, backend="cpu"):
     dIndu = mle * np.ones(nIndu)
     priorMean = dIndu.copy()
 
+    diff64 = sampleCoordinates - dataCoordinates
+    variables.coordinate_origin = np.zeros(2)
+    if dtype == "float32":
+        origin = dataCoordinates.min(axis=0)
+        variables.coordinate_origin = origin
+        dataCoordinates = dataCoordinates - origin
+        sampleCoordinates = sampleCoordinates - origin
+        induCoordinates = induCoordinates - origin
+        fineCoordinates = fineCoordinates - origin
+
     # Transfer numerical arrays once; retain proposal work on the device.
     if backend == "gpu":
-        dataCoordinates = xp.asarray(dataCoordinates)
-        sampleCoordinates = xp.asarray(sampleCoordinates)
-        induCoordinates = xp.asarray(induCoordinates)
-        fineCoordinates = xp.asarray(fineCoordinates)
-        dIndu = xp.asarray(dIndu)
-        priorMean = xp.asarray(priorMean)
+        dataCoordinates = xp.asarray(dataCoordinates, dtype=dtype)
+        sampleCoordinates = xp.asarray(sampleCoordinates, dtype=dtype)
+        induCoordinates = xp.asarray(induCoordinates, dtype=dtype)
+        fineCoordinates = xp.asarray(fineCoordinates, dtype=dtype)
+        dIndu = xp.asarray(dIndu, dtype=dtype)
+        priorMean = xp.asarray(priorMean, dtype=dtype)
     kernel = covMat if backend == "cpu" else covMat_gpu
 
     # Determine Covariance matrices
     cInduIndu = kernel(induCoordinates, induCoordinates, covLambda, covL)
     cInduData = kernel(induCoordinates, dataCoordinates, covLambda, covL)
     cInduFine = kernel(induCoordinates, fineCoordinates, covLambda, covL)
-    cProposal = cInduIndu + epsilon * xp.mean(cInduIndu) * xp.eye(nIndu)
+    cProposal = cInduIndu + epsilon * xp.mean(cInduIndu) * xp.eye(nIndu, dtype=dtype)
     cInduInduInv = xp.linalg.inv(cProposal)
     cDataIndu = cInduData.T @ cInduInduInv
     cInduInduChol = xp.linalg.cholesky(cProposal)
 
     # Determine the mle at each individual data point
-    diff = sampleCoordinates - dataCoordinates
-    dMleData = xp.sum(diff * diff, axis=1) / (4 * deltaT)
+    a = xp.asarray(np.sum(diff64 * diff64, axis=1) / (4 * deltaT), dtype=dtype)
+    dMleData = a.copy()
 
     @nb.jit(cache=True, nopython=True)
     def compute_vector(induCoordinates, dataCoordinates, covLambda, covL, dMleData, dIndu, nIndu, cDataIndu, smoother=1):
@@ -223,7 +235,6 @@ def initialization(variables, data, backend="cpu"):
         dData = cDataIndu @ dIndu
     if bool(xp.any(dData <= 0)) or bool(xp.any(dIndu <= 0)):
         raise ValueError("Initialization requires positive inducing and interpolated diffusion")
-    a = xp.sum(diff * diff, axis=1) / (4 * deltaT)
     P = float(log_likelihood(dData, a, deltaT, 2, xp)
               + log_prior(dIndu, priorMean, cInduInduInv))
     variables.backend = backend
@@ -400,7 +411,7 @@ def covMat_gpu(coordinates1, coordinates2, covLambda, covL):
     """Evaluate the existing spatial RBF on CUDA using CuPy built-ins."""
     import cupy as cp
 
-    squared = cp.zeros((len(coordinates1), len(coordinates2)), dtype=cp.float64)
+    squared = cp.zeros((len(coordinates1), len(coordinates2)), dtype=coordinates1.dtype)
     for axis in range(2):
         squared += (coordinates1[:, axis, None] - coordinates2[None, :, axis])**2
     return covLambda**2 * cp.exp(-.5 * squared / covL**2)
@@ -408,6 +419,8 @@ def covMat_gpu(coordinates1, coordinates2, covLambda, covL):
 
 def log_likelihood(diffusion, a, delta_t, dimensions=2, xp=np):
     """Evaluate the full Gaussian transition density, including constants."""
+    if diffusion.dtype == np.dtype("float32"):
+        delta_t = xp.asarray(delta_t, dtype=diffusion.dtype)
     if bool(xp.any(diffusion <= 0)):
         return -xp.inf
     return -xp.sum(dimensions / 2 * xp.log(diffusion) + a / diffusion
@@ -437,13 +450,24 @@ def proposal_log_ratio(change, scale, old, new):
 
 
 _proposal_reduction = None
+_proposal_reduction32 = None
 
 
 def gpu_likelihood_difference(old, column, change, a):
     """Fuse the measured proposal likelihood and positivity reduction."""
     import cupy as cp
 
-    global _proposal_reduction
+    global _proposal_reduction, _proposal_reduction32
+    if old.dtype == cp.float32:
+        if _proposal_reduction32 is None:
+            _proposal_reduction32 = cp.ReductionKernel(
+                "float32 old, float32 column, float32 change, float32 a",
+                "float32 result",
+                "old + column * change > 0 ? "
+                "-logf((old + column * change) / old) "
+                "-a * (1.0f / (old + column * change) - 1.0f / old) : -(1.0f/0.0f)",
+                "a + b", "result = a", "0", "gpd_proposal_float32")
+        return _proposal_reduction32(old, column, change, a)
     if _proposal_reduction is None:
         _proposal_reduction = cp.ReductionKernel(
             "float64 old, float64 column, float64 change, float64 a",
@@ -469,6 +493,8 @@ def diffusionPointSampler_gpu(variables):
         old_alpha = alpha[k]
         scale = np.random.exponential(v.epsilon[k])
         change = scale * old_alpha * np.random.randn()
+        if v.dData.dtype == cp.float32:
+            change = np.float32(change)
         new_alpha = old_alpha + change
         inducing = inducing_host + proposal_host[:, k] * change
         if np.all(inducing > 0):

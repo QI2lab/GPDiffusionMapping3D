@@ -111,3 +111,22 @@ Small 10k cases are slower on GPU; no general or small-data speedup is claimed.
 All predeclared seeds and finer simulator checks passed, without tuning seeds
 or widening the recovery target. CPU/GPU field error <=1.999e-14;
 proposal-ratio error <=3.470e-17, kernel error <=2.776e-17.
+
+Stage 2 gate PASSED with rejection of float32; float64 remains the reference.
+Experimental GPU dtype selection explicitly warns that float32 is unvalidated.
+This diagnostic path is retained solely to reproduce the evaluation; the final
+CLI must reject it. No mixed-precision numerical strategy was introduced.
+Coordinate origins are rebased before float32 conversion; displacements/a are
+formed in CPU float64 before conversion, preserving large-origin differences.
+All bulk arrays, inverse, field and likelihood reduction are float32 in that
+experiment (full-density normalization was also explicitly cast to float32).
+Memory at 10k observations: float64 6,293,568 bytes, float32 3,146,784 bytes
+for resident model arrays. Stress length scale=100, cond(R)=3601, unchanged
+jitter: inverse residual ~4.01e-4, field error ~1.18e-4 and likelihood-ratio
+error .00116537, exceeding the predeclared absolute 1e-4 acceptance-log-ratio
+budget. This budget limits a multiplicative acceptance perturbation to exp(1e-4).
+All three seeds still recovered both physical fields (<4.7% RMS in float32),
+but recovery alone does not repair inaccurate proposal ratios. GPU float32
+runs took ~4.15-4.43 s vs ~6.0-6.98 s float64 for 10k transitions. Details in
+stage2-results.json and representative 100k checks in stage2-large-results.json.
+No jitter changes, new floors, mixed precision or favorable seed selection.

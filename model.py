@@ -44,7 +44,7 @@ PARAMETERS = {
 }
 
 # THIS FUNCTION RUNS THE GIBBS SAMPLER
-def analyze(data, nIter=1000, backend="cpu", seed=None, **kwargs):
+def analyze(data, nIter=1000, backend="cpu", seed=None, dtype="float64", **kwargs):
     """
     Run the Gibbs sampler.
 
@@ -59,6 +59,10 @@ def analyze(data, nIter=1000, backend="cpu", seed=None, **kwargs):
         numpy.ndarray: Probability of each sample.
     """
 
+    if dtype == "float32":
+        import warnings
+        warnings.warn("GPU float32 is experimental and failed acceptance-ratio validation; use float64 for inference", RuntimeWarning, stacklevel=2)
+
     # Progress Marker
     print('Initialization Started')
     startTime = time.time()
@@ -68,7 +72,7 @@ def analyze(data, nIter=1000, backend="cpu", seed=None, **kwargs):
     if seed is not None:
         np.random.seed(seed)
         functions.seed_sampler(seed)
-    variables = functions.initialization(parameters, data, backend=backend)
+    variables = functions.initialization(parameters, data, backend=backend, dtype=dtype)
     endTime = time.time()
 
     # Progress Marker
@@ -161,4 +165,7 @@ def analyze(data, nIter=1000, backend="cpu", seed=None, **kwargs):
         for key, value in vars(map_variables).items():
             if isinstance(value, cp.ndarray):
                 setattr(map_variables, key, cp.asnumpy(value))
+        for key in ("dataCoordinates", "sampleCoordinates", "induCoordinates", "fineCoordinates"):
+            setattr(map_variables, key, getattr(map_variables, key) + map_variables.coordinate_origin)
+        map_variables.coordinate_origin = np.zeros(2)
     return map_variables, dVect, pVect
