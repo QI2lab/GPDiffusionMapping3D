@@ -98,3 +98,10 @@ def test_actual_metropolis_step_against_independent_density(
         v.P, density(new, proposed) if accept else old_p, rtol=2e-14
     )
     assert bool(accepted[0]) == accept
+
+
+@pytest.mark.parametrize("seed", [11, 12, 13])
+def test_whitened_block_step_against_full_density(cupy_gpu, seed):
+    from scripts.posterior_oracle import validate_block_step
+
+    validate_block_step("gpu", seed)

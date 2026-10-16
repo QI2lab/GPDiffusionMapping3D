@@ -7,5 +7,6 @@ pytestmark = [pytest.mark.gpu, pytest.mark.integration]
 
 
 @pytest.mark.parametrize("dimensions", [1, 2])
-def test_small_positive_diffusion_posterior(cupy_gpu, dimensions):
-    validate("gpu", dimensions)
+@pytest.mark.parametrize("proposal", ["additive", "blocked"])
+def test_small_positive_diffusion_posterior(cupy_gpu, dimensions, proposal):
+    validate("gpu", dimensions, proposal=proposal)

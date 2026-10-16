@@ -492,6 +492,8 @@ def diffusionPointSampler(variables, data):
     - Sampled variables and acceptance count.
     """
 
+    if getattr(variables, "proposal", "relative") == "blocked":
+        return sample_blocks(variables)
     if getattr(variables, "backend", "cpu") == "gpu":
         return diffusionPointSampler_gpu(variables)
 
@@ -705,3 +707,172 @@ def diffusionPointSampler_gpu(variables):
 def seed_sampler(seed):
     """Set the CPU sampler RNG for independently seeded inference runs."""
     np.random.seed(seed)
+
+
+def prepare_block_proposals(v, block_size=16):
+    """Freeze prior-whitened Fisher directions without changing the posterior.
+
+    The positive-definite Fisher approximation is used only for a fixed
+    symmetric proposal covariance. It is not an approximation to the target.
+    """
+    xp = np
+    if v.backend == "gpu":
+        import cupy as cp
+
+        xp = cp
+    chol = v.cInduInduChol
+    design = v.cDataIndu @ chol
+    precision = xp.eye(v.nIndu) + design.T @ (
+        (v.dimensions / (2 * v.dData**2))[:, None] * design
+    )
+    factor = xp.linalg.cholesky(precision)
+    v.block_directions = chol @ xp.linalg.solve(factor.T, xp.eye(v.nIndu))
+    v.block_basis = xp.ascontiguousarray((v.cDataIndu @ v.block_directions).T)
+    v.block_prior_directions = v.cInduInduInv @ v.block_directions
+    v.block_prior_precision = v.block_directions.T @ v.block_prior_directions
+    v.block_size = block_size
+    v.nProposals = (v.nIndu + block_size - 1) // block_size
+    if v.backend == "gpu":
+        v.block_host = tuple(
+            cp.asnumpy(x)
+            for x in (
+                v.block_directions,
+                v.block_prior_directions,
+                v.block_prior_precision,
+                v.priorMean,
+            )
+        )
+
+
+@nb.njit(cache=True)
+def sample_blocks_nb(
+    inducing,
+    field,
+    posterior,
+    prior_mean,
+    directions,
+    basis,
+    prior_directions,
+    prior_precision,
+    a,
+    dimensions,
+    block_size,
+    epsilon,
+    temperature,
+    diagnostics,
+):
+    """Sequential symmetric block MH with exact Gaussian likelihood ratios."""
+    accepted = np.zeros(len(epsilon))
+    for block in indexShuffler(len(epsilon)):
+        low = block * block_size
+        high = min(len(inducing), low + block_size)
+        change = epsilon[block] * np.random.randn(high - low)
+        inducing_change = (
+            np.ascontiguousarray(directions[:, low:high]) @ change
+        )
+        if diagnostics is not None:
+            diagnostics[4, block] += epsilon[block]
+        if np.any(inducing + inducing_change <= 0):
+            if diagnostics is not None:
+                diagnostics[0, block] += 1
+            continue
+        field_change = change @ basis[low:high]
+        proposed = field + field_change
+        if np.any(proposed <= 0):
+            if diagnostics is not None:
+                diagnostics[1, block] += 1
+            continue
+        difference = 0.0
+        for j in range(len(field)):
+            difference += -dimensions / 2 * np.log(proposed[j] / field[j]) - a[
+                j
+            ] * (1 / proposed[j] - 1 / field[j])
+        difference -= change @ (
+            np.ascontiguousarray(prior_directions[:, low:high].T)
+            @ (inducing - prior_mean)
+        )
+        difference -= (
+            0.5
+            * change
+            @ (
+                np.ascontiguousarray(prior_precision[low:high, low:high])
+                @ change
+            )
+        )
+        if difference / temperature > np.log(np.random.rand()):
+            inducing += inducing_change
+            field = proposed
+            posterior += difference
+            accepted[block] = 1
+            if diagnostics is not None:
+                diagnostics[3, block] += change @ change
+        elif diagnostics is not None:
+            diagnostics[2, block] += 1
+    return inducing, field, posterior, accepted
+
+
+def sample_blocks(v):
+    """Apply dependent block proposals in order on explicit CPU or CUDA."""
+    diagnostics = getattr(v, "proposal_stats", None)
+    if v.backend == "cpu":
+        v.dIndu, v.dData, v.P, accepted = sample_blocks_nb(
+            v.dIndu,
+            v.dData,
+            v.P,
+            v.priorMean,
+            v.block_directions,
+            v.block_basis,
+            v.block_prior_directions,
+            v.block_prior_precision,
+            v.a,
+            v.dimensions,
+            v.block_size,
+            v.epsilon,
+            v.temperature,
+            diagnostics,
+        )
+    else:
+        import cupy as cp
+
+        directions, prior_directions, prior_precision, mean = v.block_host
+        inducing = cp.asnumpy(v.dIndu)
+        accepted = np.zeros(v.nProposals)
+        for block in indexShuffler.py_func(v.nProposals):
+            low = block * v.block_size
+            high = min(v.nIndu, low + v.block_size)
+            change = v.epsilon[block] * np.random.randn(high - low)
+            inducing_change = directions[:, low:high] @ change
+            if diagnostics is not None:
+                diagnostics[4, block] += v.epsilon[block]
+            if np.any(inducing + inducing_change <= 0):
+                if diagnostics is not None:
+                    diagnostics[0, block] += 1
+                continue
+            field_change = cp.asarray(change) @ v.block_basis[low:high]
+            difference = float(
+                gpu_likelihood_difference(
+                    v.dData, field_change, 1.0, v.a, v.dimensions
+                )
+            )
+            if np.isneginf(difference):
+                if diagnostics is not None:
+                    diagnostics[1, block] += 1
+                continue
+            difference -= change @ (
+                prior_directions[:, low:high].T @ (inducing - mean)
+            )
+            difference -= (
+                0.5 * change @ (prior_precision[low:high, low:high] @ change)
+            )
+            if difference / v.temperature > np.log(np.random.rand()):
+                v.dIndu += cp.asarray(inducing_change)
+                v.dData += field_change
+                inducing += inducing_change
+                v.P += difference
+                accepted[block] = 1
+                if diagnostics is not None:
+                    diagnostics[3, block] += change @ change
+            elif diagnostics is not None:
+                diagnostics[2, block] += 1
+    print(f"{100 * accepted.mean():.2f}%", end=" ")
+    return v, accepted

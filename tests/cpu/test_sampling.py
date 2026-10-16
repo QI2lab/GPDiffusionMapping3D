@@ -7,5 +7,6 @@ pytestmark = [pytest.mark.cpu, pytest.mark.integration]
 
 
 @pytest.mark.parametrize("dimensions", [1, 2])
-def test_small_positive_diffusion_posterior(dimensions):
-    validate("cpu", dimensions)
+@pytest.mark.parametrize("proposal", ["additive", "blocked"])
+def test_small_positive_diffusion_posterior(dimensions, proposal):
+    validate("cpu", dimensions, proposal=proposal)

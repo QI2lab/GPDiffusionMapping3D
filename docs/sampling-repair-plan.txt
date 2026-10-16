@@ -80,3 +80,20 @@ and then fixed. In prior coordinates its precision is I+L.T*Fisher*L; it does
 not alter the GP covariance, jitter or target. Each block has a symmetric
 Gaussian proposal and its own warmup-tuned scale. Blocks are updated sequentially
 in randomized order. The identical oracle and convergence requirements apply.
+
+Completed additive pilot: every coordinate received accepted production updates,
+with acceptance roughly .199-.308 across all eight CPU/CUDA chains. Physical
+RMS recovery .0411-.0591 passes. Correlation-limited exploration remains:
+maximum split R-hat CPU/GPU 2.861/3.035 uniform, 2.946/2.955 smooth; minimum bulk
+ESS about 2.26-2.30. This two-chain 1000-sweep pilot is not a convergence pass
+or evidence that additive proposals can never converge; it motivates the
+predeclared blocked candidate rather than further long coordinate-wise runs.
+Full numerical evidence is in sampling-additive-pilot.json; raw traces are local.
+
+Blocked candidate: small posterior oracles plus actual proposal-density tests
+passed 15 CPU cases (29.89 s, one Numba noncontiguous-array performance warning)
+and 15 actual CUDA cases (113.22 s). Small slices were then made contiguous;
+the repeated CPU mathematical file passed 11 cases in 11.53 s without warnings.
+The 125-value CUDA geometry/full-density checks passed 2 unit cases in 2.64 s.
+The larger development validation starts only after these mathematical gates.
+The unchanged-default CPU preservation suite passed 40 cases in 425.28 s.

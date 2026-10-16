@@ -155,3 +155,10 @@ def test_single_metropolis_proposal_against_full_density(seed, additive):
         result[2], proposed if expected_accept else field, rtol=2e-14
     )
     assert bool(result[3][0]) == expected_accept
+
+
+@pytest.mark.parametrize("seed", [11, 12, 13])
+def test_whitened_block_step_against_full_density(seed):
+    from scripts.posterior_oracle import validate_block_step
+
+    validate_block_step("cpu", seed)

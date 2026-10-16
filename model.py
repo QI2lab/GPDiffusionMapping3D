@@ -55,6 +55,7 @@ def analyze(
     diagnostics=False,
     initial_inducing=None,
     proposal="relative",
+    block_size=16,
     **kwargs,
 ):
     """Run sequential Metropolis-within-Gibbs inference.
@@ -83,8 +84,11 @@ def analyze(
         Record warmup widths, rejections and accepted coefficient displacements.
     initial_inducing : numpy.ndarray or None, optional
         Positive initial inducing field for independent-chain investigation.
-    proposal : {"relative", "additive"}, optional
+    proposal : {"relative", "additive", "blocked"}, optional
         Legacy state-dependent or symmetric additive inverse-coordinate moves.
+        The blocked option uses fixed prior-whitened Fisher directions.
+    block_size : int, optional
+        Number of coordinates in a sequential symmetric block proposal.
     **kwargs
         Overrides of the existing model parameters.
 
@@ -102,8 +106,14 @@ def analyze(
         raise ValueError("burn_in must be a nonnegative integer")
     if adaptation not in ("legacy", "diminishing"):
         raise ValueError("adaptation must be legacy or diminishing")
-    if proposal not in ("relative", "additive"):
-        raise ValueError("proposal must be relative or additive")
+    if proposal not in ("relative", "additive", "blocked"):
+        raise ValueError("proposal must be relative, additive or blocked")
+    if not isinstance(block_size, (int, np.integer)) or block_size < 1:
+        raise ValueError("block_size must be a positive integer")
+    if proposal == "blocked" and dtype != "float64":
+        raise ValueError(
+            "Blocked proposals require validated float64 precision"
+        )
     burnIter = 2 * nIter if annealing_sweeps is None else annealing_sweeps
     stabilizeIter = (
         (200 if adaptation == "legacy" else 4000)
@@ -175,8 +185,11 @@ def analyze(
                 initial, variables.priorMean, variables.cInduInduInv
             )
         )
+    variables.nProposals = variables.nIndu
+    if proposal == "blocked":
+        functions.prepare_block_proposals(variables, block_size)
     if diagnostics:
-        variables.proposal_stats = np.zeros((5, variables.nIndu))
+        variables.proposal_stats = np.zeros((5, variables.nProposals))
     warmup_trace = []
     endTime = time.time()
 
@@ -187,14 +200,14 @@ def analyze(
     # Get number of iterations
 
     # Redefine perturbation magnitude for samples
-    variables.epsilon = np.ones(np.shape(variables.dIndu))
+    variables.epsilon = np.ones(variables.nProposals)
     startTime = time.time()
 
     # Initial temp and cooling rate for targeted annealing
     initTemp = 7.5
     coolRate = np.log(initTemp) / max(1, burnIter)
-    log_width = np.zeros(variables.nIndu)
-    window_acceptance = np.zeros(variables.nIndu)
+    log_width = np.zeros(variables.nProposals)
+    window_acceptance = np.zeros(variables.nProposals)
 
     def adapt_width(accepted, iteration, total, target, phase):
         nonlocal window_acceptance, log_width
@@ -211,7 +224,7 @@ def analyze(
                 raise FloatingPointError(
                     "Warmup proposal widths became invalid"
                 )
-            window_acceptance = np.zeros(variables.nIndu)
+            window_acceptance = np.zeros(variables.nProposals)
             if diagnostics:
                 warmup_trace.append(
                     (
@@ -226,7 +239,7 @@ def analyze(
     ## BURN IN 1 ##
     # Burn in super aggressively but do not save the samples,
     # updating proposal size to maintain healthy acceptance rate
-    accVect = np.zeros(np.shape(variables.dIndu))
+    accVect = np.zeros(variables.nProposals)
     for i in range(burnIter):
         variables.temperature = functions.expCooling(i, initTemp, coolRate)
         print(f"Annealing Iteration {i + 1}/{burnIter}", end=" ")
@@ -255,8 +268,8 @@ def analyze(
     # Set temperature back to 1 and acceptance to 0, and iterate
     # a few times to find ideal magnitude of proposal to maintain healthy acceptance
     variables.temperature = 1
-    window_acceptance = np.zeros(variables.nIndu)
-    accVect = np.zeros(np.shape(variables.dIndu))
+    window_acceptance = np.zeros(variables.nProposals)
+    accVect = np.zeros(variables.nProposals)
     for i in range(stabilizeIter):
         print(f"Stabilization Iteration {i + 1}/{stabilizeIter}", end=" ")
         t = time.time()
@@ -291,7 +304,7 @@ def analyze(
 
     initial_inducing = host_array(variables.dIndu)
     initial_alpha = host_array(variables.cInduInduInv @ variables.dIndu)
-    production_acceptance = np.zeros(variables.nIndu)
+    production_acceptance = np.zeros(variables.nProposals)
     if diagnostics:
         warmup_stats = variables.proposal_stats.copy()
         variables.proposal_stats[:] = 0
@@ -349,6 +362,15 @@ def analyze(
         )
         map_variables.sampling_metadata["warmup_proposal_stats"] = warmup_stats
         map_variables.warmup_trace = warmup_trace
+        map_variables.sampling_metadata["proposal_stat_names"] = np.array(
+            [
+                "inducing_support_rejections",
+                "observation_support_rejections",
+                "metropolis_rejections",
+                "accepted_squared_displacement",
+                "proposal_standard_deviation_sum",
+            ]
+        )
 
     if backend == "gpu":
         import cupy as cp

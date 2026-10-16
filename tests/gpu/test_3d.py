@@ -120,3 +120,69 @@ def test_independent_3d_chain_means_with_sampling_uncertainty(
         "difference": difference.tolist(),
         "bound": bound.tolist(),
     }
+
+
+@pytest.mark.unit
+def test_fixed_whitened_block_geometry_and_density(cupy_gpu):
+    cp = cupy_gpu
+    data = prepared(count=300)
+    parameters = {
+        **model.PARAMETERS,
+        "nInduX": 5,
+        "nInduY": 5,
+        "nInduZ": 5,
+        "nFineX": 3,
+        "nFineY": 3,
+        "nFineZ": 3,
+        "covLambda": 0.5,
+        "covL": 1.5,
+    }
+    with contextlib.redirect_stdout(io.StringIO()):
+        cpu = f.initialization(parameters, data)
+        gpu = f.initialization(parameters, data, backend="gpu")
+    f.prepare_block_proposals(cpu)
+    f.prepare_block_proposals(gpu)
+    bound = 128 * np.finfo(float).eps * np.linalg.cond(cpu.cProposal)
+    np.testing.assert_allclose(
+        cp.asnumpy(gpu.block_directions),
+        cpu.block_directions,
+        rtol=bound,
+        atol=bound,
+    )
+    precision = cpu.cInduInduInv + cpu.cDataIndu.T @ (
+        (1.5 / cpu.dData**2)[:, None] * cpu.cDataIndu
+    )
+    np.testing.assert_allclose(
+        cpu.block_directions.T @ precision @ cpu.block_directions,
+        np.eye(125),
+        rtol=bound,
+        atol=bound,
+    )
+    change = 0.05 * np.sin(np.arange(16))
+    proposed = cpu.dIndu + cpu.block_directions[:, :16] @ change
+    field = cpu.cDataIndu @ proposed
+    delta_field = cp.asarray(change) @ gpu.block_basis[:16]
+    actual = float(
+        f.gpu_likelihood_difference(gpu.dData, delta_field, 1.0, gpu.a, 3)
+    )
+    actual += float(
+        f.log_prior(cp.asarray(proposed), gpu.priorMean, gpu.cInduInduInv)
+        - f.log_prior(gpu.dIndu, gpu.priorMean, gpu.cInduInduInv)
+    )
+
+    def oracle(inducing, diffusion):
+        return sum(
+            stats.multivariate_normal.logpdf(step, cov=2 * d * dt * np.eye(3))
+            for step, d, dt in zip(
+                data.ends - data.starts, diffusion, data.delta_t
+            )
+        ) + stats.multivariate_normal.logpdf(
+            inducing, mean=cpu.priorMean, cov=cpu.cProposal
+        )
+
+    np.testing.assert_allclose(
+        actual,
+        oracle(proposed, field) - oracle(cpu.dIndu, cpu.dData),
+        rtol=bound,
+        atol=bound,
+    )
