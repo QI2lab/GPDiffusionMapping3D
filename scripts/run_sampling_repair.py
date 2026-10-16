@@ -205,6 +205,7 @@ def summarize(directory, count, pilot):
                         / 4.5
                     )
                     covariance = kernel + 0.01 * kernel.mean() * np.eye(125)
+                    covariance_condition = np.linalg.cond(covariance)
                     cross = 0.25 * np.exp(
                         -np.sum(
                             (data.starts[:, None] - coordinates[None, :]) ** 2,
@@ -256,7 +257,7 @@ def summarize(directory, count, pilot):
                         minimum_bound,
                         128
                         * np.finfo(float).eps
-                        * np.linalg.cond(covariance)
+                        * covariance_condition
                         * max(1, abs(direct)),
                     )
                 individual["posterior_consistency_max_error"] = maximum_error

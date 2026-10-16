@@ -288,3 +288,21 @@ After optional burn_in support, separate preservation runs:
 was already executed and failed; it is not hidden as a hardware skip.
 The four explicit extended-burn-in chains are diagnostic runs, not pytest
 passes. Stage 4 remains incomplete; Stage 5 has not begun.
+
+User-authorized sampling repair, separate from the failed preserved-sampler
+investigation above:
+    uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+40 passed, 425.28 s, after stable warmup, additive and fixed blocked proposals.
+    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu -k 'not independent_3d_chain_means_with_sampling_uncertainty' --strict-markers -q
+27 passed, 1 deselected, zero skips, 673.20 s. The old long comparison was
+replaced afterward by two full four-chain convergence tests with the new
+predeclared R-hat/ESS/MCSE requirements. Their full-suite run is pending.
+The block-size-8/16 independent 125-value geometry/density unit cases also
+passed: 3 passed, 8 deselected, 2.85 s (unit selection only).
+
+Block size16 failed the smooth-field convergence gate at 20000 production
+sweeps; block size8 passed development for both fields and backends at the
+same cap, seeds and unchanged thresholds. See sampling-repair-plan.txt,
+sampling-repair-mathematics.txt and sampling-blocked8-development.json.
+Held-out confirmation and the full required-GPU suite are running; no Stage 5
+or default promotion is claimed from development alone.

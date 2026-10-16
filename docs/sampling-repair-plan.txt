@@ -131,5 +131,21 @@ chain was selectively rerun. The summary exited zero. A fresh actual CuPy
 float64 sum(arange(32)**2), followed by device synchronization, returned
 10416.0 on NVIDIA GeForce RTX3090.
 
-Held-out confirmation and the full required-CUDA suite are now running.
-Default promotion and Stage 5 remain pending those gates.
+Held-out confirmation PASSED with the same sampler and thresholds, without
+tuning on its outcomes. Uniform regular-time seed42 and smooth irregular-time
+seed43 (10 simulator substeps), four chains per backend:
+                    max R-hat   min bulk ESS   min tail ESS   max MCSE/SD
+uniform CPU         1.004350     2269.05        4311.66        .02100
+uniform CUDA        1.005008     2221.98        4382.99        .02123
+smooth CPU          1.004770     2083.29        4228.20        .02191
+smooth CUDA         1.004915     2101.07        4113.03        .02181
+All sixteen MAP RMS errors are 3.426-6.326%, zero unupdated proposal blocks,
+full-posterior recomputation within the original conditioning-derived bounds,
+and CPU/CUDA mean agreement passes. Every original production draw is retained.
+Report: sampling-blocked8-heldout.json; figures/sampling-blocked8-heldout.png.
+Command exited zero:
+    GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/run_sampling_repair.py --proposal blocked --block-size 8 --heldout --directory validation_artifacts/repair-blocked8-heldout --output docs/sampling-blocked8-heldout.json
+
+The full required-CUDA suite is still running; its fresh uniform-field
+four-chain test passed. Default promotion and Stage 5 remain pending the
+remaining scientific tests.

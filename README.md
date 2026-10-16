@@ -85,10 +85,20 @@ investigation added 10,000 discarded temperature-one sweeps after adaptation,
 before 5,000 production sweeps. Both fields still mixed poorly: maximum split
 R-hat 1.78 (uniform) / 1.87 (smooth), with coefficients that never updated in
 production. See `docs/3d-burnin-investigation.txt`, `docs/stage4-burnin-10000.json`
-and `docs/figures/3d-burnin-10000.png`. Stage 4 is incomplete;
-the Stage 5 refactoring and CLI have not started. The GPU suite includes this
-long-running comparison. See `docs/stage-validation.txt` and
-`docs/figures/3d-sampling-1000.png` for evidence.
+and `docs/figures/3d-burnin-10000.png` for this original-sampler investigation.
+
+The authorized repair adds fixed Fisher-preconditioned block Metropolis
+proposals and recent-window warmup tuning, preserving the exact likelihood,
+GP prior and positivity constraints. Eight-coordinate blocks passed the
+development checks on both CPU and CUDA: maximum rank/folded R-hat 1.00536,
+minimum bulk ESS 2,127 across all 278 monitored quantities, and physical RMS
+recovery below 6.84%. Held-out confirmation also passed: maximum R-hat 1.00501,
+minimum bulk ESS 2,083 and recovery below 6.33%. The full required-GPU suite
+is pending; defaults still select the original sampler. Stage 5 has not
+started. See `docs/sampling-repair-plan.txt`,
+`docs/sampling-blocked8-development.json` and
+`docs/figures/sampling-blocked8-development.png`. The full GPU suite includes
+four-chain convergence checks for both uniform and smooth fields.
 
 The computational API accepts `burn_in=10000` to request extra discarded sweeps
 after the original annealing and adaptation. Proposal widths remain fixed during

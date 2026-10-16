@@ -3,7 +3,10 @@ LOCAL EXECUTION STATUS
 Branch: feat/3D. All implementation and validation are local; no push or PR.
 Stages 0, 1, 2 and 3 are complete. Stage 2 rejected float32 and retained
 float64. Stage 4 mathematical and physical recovery checks passed, but
-independent-chain mixing is unresolved. Stage 5 has not started.
+the original sampler failed independent-chain mixing. The user-authorized
+blocked sampler has now passed development and held-out convergence on CPU
+and CUDA. The full scientific suite is pending. Stage 5 has not started.
+See sampling-repair-plan.txt and the repair reports.
 
 Environment: Python 3.12.13, NumPy 2.0.2, Numba 0.60.0, SciPy 1.14.1,
 Matplotlib 3.9.4, CuPy 14.2.0, CUDA runtime 12.9. Actual CUDA device:
@@ -45,7 +48,7 @@ successful physical recovery do not override that numerical failure. Float64
 is the validated precision; float32 remains explicitly warned diagnostics.
 No mixed-precision scheme, diffusion floors, or larger jitter were introduced.
 
-SAMPLING LIMITATION
+HISTORICAL SAMPLING LIMITATION
 
 On smooth irregular-time 3D data with independent sampler seeds 41/42 and
 common data seed 41, 5,000 production sweeps after 10,000 annealing and 200
@@ -66,7 +69,8 @@ updates. Longer fixed-width burn-in did not establish convergence. The
 original 500-sweep-batch comparisons fail at 5/27 uniform and 7/27 smooth
 positions; larger-batch nominal passes are not accepted as convergence.
 Proposal widths for frozen coefficients are severely mismatched to local
-conditional scales. Stage 4 remains incomplete; the sampler was preserved.
+conditional scales. This preserved-sampler investigation motivated the later
+user-authorized proposal repair; the failed evidence remains unchanged.
 
 After optional burn-in support, preservation runs passed separately:
 CPU full mathematics/physics: 30 passed, 365.91 s.
@@ -74,6 +78,48 @@ Required GPU excluding the separately executed old long comparison:
 16 passed, 1 deselected, zero skips, 640.74 s. The four extended-burn-in
 chains were run explicitly in the independent investigation, not counted
 as passing pytest tests or as a completed scientific sampling gate.
+
+USER-AUTHORIZED SAMPLING REPAIR
+
+Fixed prior-whitened, Fisher-preconditioned block Metropolis proposals preserve
+the exact transition likelihood, direct GP prior, regularization, interpolation
+and positivity support. Recent 50-sweep acceptance windows tune log proposal
+widths during warmup only. Geometry and widths remain fixed in production.
+Small one/two-parameter posterior moments and CDFs pass independent numerical
+quadrature on actual CPU and CUDA, including a zero inverse coefficient.
+Independent prescribed full-density proposal checks also pass.
+
+The sixteen-coordinate candidate failed smooth-field R-hat at 20000 sweeps;
+its failed report is retained. Eight-coordinate blocks passed the identical
+development protocol and the untouched held-out protocol, without changing
+the model, seeds, recovery tolerance or convergence thresholds. Each campaign
+uses four chains per backend per field and monitors all 278 quantities:
+125 inducing values, 125 inverse coefficients, 27 central sites, log posterior.
+Warmup: 2000 annealing + 4000 temperature-one adaptation + 1000 additional
+discarded fixed-width sweeps. All 20000 production draws per chain are retained.
+
+Campaign/field   Backend max R-hat  min bulk ESS min tail ESS max MCSE/SD
+Development flat CPU    1.005359   2200.44      4777.58      .02134
+Development flat CUDA   1.003811   2126.68      4610.23      .02169
+Development bump CPU    1.004936   2132.64      4195.35      .02169
+Development bump CUDA   1.004896   2164.35      4428.50      .02150
+Held-out flat    CPU    1.004350   2269.05      4311.66      .02100
+Held-out flat    CUDA   1.005008   2221.98      4382.99      .02123
+Held-out bump    CPU    1.004770   2083.29      4228.20      .02191
+Held-out bump    CUDA   1.004915   2101.07      4113.03      .02181
+
+All MAP RMS errors: development 4.464-6.832%, held-out 3.426-6.326% (<10%).
+All blocks accepted production updates. Independent full-density recomputation
+at first/middle/final states differs by at most 1.608e-9 / 1.616e-9 respectively,
+within conditioning-derived bounds. CPU/CUDA field means agree within the
+predeclared simultaneous sampling intervals in every field and campaign.
+CUDA pool capacity: 201349120 bytes per worker. Concurrent chain durations
+are recorded in JSON but are not isolated CPU/GPU speed measurements.
+
+Reports: sampling-blocked8-development.json, sampling-blocked8-heldout.json;
+trace/rank plots: figures/sampling-blocked8-{development,heldout}.png.
+The full required-GPU suite is still running. Defaults remain unchanged until
+its remaining scientific checks pass; Stage 5 has not begun.
 
 INSTALLATION AND EXECUTION
 
@@ -86,7 +132,8 @@ After setup, retain the selected environment with uv run --no-sync.
 Scientific suites (CPU and GPU are separate):
     uv run --no-sync python -m pytest tests/cpu --strict-markers -q
     GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
-The GPU suite includes the known failing, long 3D chain-mean comparison.
+The GPU suite now includes four-chain blocked-sampler convergence checks for
+both fields. Historical failures of the original sampler remain in reports.
 Historical executed test counts and subsequent reruns are in
 stage-validation.txt; no skipped run is presented as hardware validation.
 

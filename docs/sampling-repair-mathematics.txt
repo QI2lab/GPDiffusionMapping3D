@@ -11,8 +11,10 @@ matrix. W=B.T R^-1 is the original inducing interpolation. The target is
 
 All dt_j are the original actual positive elapsed times. No drift, log-diffusion,
 localization-error inference, latent positions or new GP kernel is introduced.
-R and its existing jitter are unchanged. Gaussian normalization constants are
-retained in saved log densities and cancel from proposal log ratios.
+R and its existing jitter are unchanged. Transition Gaussian normalization
+constants are retained in saved log densities and cancel from proposal log
+ratios. The GP prior's fixed normalization constant is omitted consistently;
+saved posterior values are unnormalized log densities.
 
 ADDITIVE INVERSE-COORDINATE COMPARISON
 
