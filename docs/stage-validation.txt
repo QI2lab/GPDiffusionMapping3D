@@ -149,3 +149,33 @@ Required GPU results are recorded after completion; no optional skips count.
 Stage 3 gate PASSED: required GPU suite 5 passed, 68.34 s, zero skips, on the
 RTX 3090. CPU suite 15 passed independently. No formal float32 correctness
 suite was added because float32 was rejected. No 3D code preceded these gates.
+
+Stage 4 specification and implementation
+Added 3D mathematical/physical tests before implementing the 3D path. The first
+unit run failed as expected (prepare_tracks absent); after implementation the
+same two units pass. Actual-GPU 3D unit check also passes, including independent
+Gaussian density, CPU/GPU covariance/interpolation and fused proposal ratios.
+Input preparation groups by particle identity without float conversion, sorts
+within each group by numeric seconds, and uses each positive elapsed interval.
+Nonfinite input/intervals and duplicate times are rejected. Single observations
+supply no transition. No cross-particle displacements or time GP coordinate.
+D_global = mean(||step||^2/(6*dt_j)), the independent unequal-interval MLE.
+Existing 2D fixed-deltaT input remains supported; CPU sampler receives a
+broadcast per-observation interval vector with identical scalar arithmetic.
+RBF sums three spatial coordinates; 3D grid and plotting explicitly use ZYX.
+Provides a simple nearest-grid-Z XY slice, diffusion units µm²/s.
+
+Predeclared 3D recovery: seeds 41,42,43, 20k independent ZYX pairs, uniform
+[-3,3]^3 nm starts; D=1 or 1+.4*exp(-||r||^2/2) nm²/s. Regular dt=.005 s or
+irregular dt uniform [.002,.008] s. Five inducing positions per spatial axis,
+covLambda=.5, covL=1.5, existing jitter=.01 and original sampler schedule with
+100 production iterations. Evaluate 27 positions on [-1,1]^3; <=10% RMS target.
+Check a smooth simulator using ten fine internal steps at the same observed
+interval, exposing discretization bias without replacing the Euler likelihood.
+The original short-time approximation does not claim arbitrary gaps are exact.
+
+Separate 3D float32 re-evaluation: rejected again, without changing float64.
+Ordinary ratio error .0001533 and stress error .0442453 exceed 1e-4. Stress
+inverse residual .002007 and field error .0005709 (cond(R)=12501).
+Resident arrays: float64 41,913,000 / float32 20,956,500 bytes. The 3D diagnostic
+uses the full 3D density/ratio with float32 arrays; see stage4-float32-results.json.

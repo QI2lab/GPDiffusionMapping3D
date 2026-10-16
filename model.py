@@ -9,6 +9,8 @@ import pickle
 PARAMETERS = {
 
     # General Knowns
+    'nInduZ': 4,
+    'nFineZ': 10,
     'nInduX': 30,   # Number of x inducing points
     'nInduY': 30,   # Number of y grid points (total inducing points is nInduY*nInduX)
     'nFineX': 100,  # Fine grid points in x
@@ -72,6 +74,11 @@ def analyze(data, nIter=1000, backend="cpu", seed=None, dtype="float64", **kwarg
     if seed is not None:
         np.random.seed(seed)
         functions.seed_sampler(seed)
+    if getattr(data, "dimensions", 2) == 3:
+        if "nInduX" not in kwargs:
+            parameters["nInduX"] = 6
+        if "nInduY" not in kwargs:
+            parameters["nInduY"] = 6
     variables = functions.initialization(parameters, data, backend=backend, dtype=dtype)
     endTime = time.time()
 
@@ -167,5 +174,5 @@ def analyze(data, nIter=1000, backend="cpu", seed=None, dtype="float64", **kwarg
                 setattr(map_variables, key, cp.asnumpy(value))
         for key in ("dataCoordinates", "sampleCoordinates", "induCoordinates", "fineCoordinates"):
             setattr(map_variables, key, getattr(map_variables, key) + map_variables.coordinate_origin)
-        map_variables.coordinate_origin = np.zeros(2)
+        map_variables.coordinate_origin = np.zeros(map_variables.dimensions)
     return map_variables, dVect, pVect

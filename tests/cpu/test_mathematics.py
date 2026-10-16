@@ -71,7 +71,7 @@ def test_single_metropolis_proposal_against_full_density(seed):
         ratio+=stats.norm.logpdf(change,scale=abs(scale*(alpha+change)))-stats.norm.logpdf(change,scale=abs(scale*alpha))
         expected_accept=ratio>np.log(rng.rand())
     f.seed_sampler(seed)
-    result=f.diffusionPointSamplerSA_nb(1,covariance,cross,inverse,cross.T@inverse,dt,starts,ends,starts,np.linalg.cholesky(covariance),old,actual_p,field,mean,.5,epsilon,temperature)
+    result=f.diffusionPointSamplerSA_nb(1,covariance,cross,inverse,cross.T@inverse,np.full(2,dt),starts,ends,starts,np.linalg.cholesky(covariance),old,actual_p,field,mean,.5,epsilon,temperature)
     np.testing.assert_allclose(result[0],new if expected_accept else old,rtol=2e-14)
     np.testing.assert_allclose(result[2],proposed if expected_accept else field,rtol=2e-14)
     assert bool(result[3][0])==expected_accept

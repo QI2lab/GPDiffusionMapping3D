@@ -1,0 +1,86 @@
+[
+  {
+    "dimensions": 3,
+    "count": 20000,
+    "stress": false,
+    "full_likelihood_dtype": "float64",
+    "dtype": "float64",
+    "condition": 2269.4305153519485,
+    "array_dtypes": [
+      "float64"
+    ],
+    "live_array_bytes": 41913000,
+    "initialization_s": 0.027718959376215935,
+    "inverse_residual": 5.808135916545283e-13,
+    "field_max_error": 3.086420008457935e-14,
+    "minimum_diffusion": 0.96267586504419,
+    "full_likelihood_error": 7.275957614183426e-12,
+    "ratio_error_cpu": 2.7200464103316335e-14,
+    "ratio_error_gpu64": 0.0,
+    "prior_delta_error": 1.2527956103070004e-16
+  },
+  {
+    "dimensions": 3,
+    "count": 20000,
+    "stress": false,
+    "full_likelihood_dtype": "float32",
+    "dtype": "float32",
+    "condition": 2269.4305153519485,
+    "array_dtypes": [
+      "float32"
+    ],
+    "live_array_bytes": 20956500,
+    "initialization_s": 0.2098306231200695,
+    "inverse_residual": 0.0003493772819638252,
+    "field_max_error": 6.589294669678836e-06,
+    "minimum_diffusion": 0.9626756906509399,
+    "full_likelihood_error": 7.660612754989415e-05,
+    "ratio_error_cpu": 0.00015329254541010529,
+    "ratio_error_gpu64": 0.00015329254540911302,
+    "prior_delta_error": 2.7372743392864744e-08
+  },
+  {
+    "dimensions": 3,
+    "count": 20000,
+    "stress": true,
+    "full_likelihood_dtype": "float64",
+    "dtype": "float64",
+    "condition": 12501.001874747462,
+    "array_dtypes": [
+      "float64"
+    ],
+    "live_array_bytes": 41913000,
+    "initialization_s": 0.050026075914502144,
+    "inverse_residual": 3.5549672518852e-12,
+    "field_max_error": 1.106226221736506e-12,
+    "minimum_diffusion": 1.0013562104070748,
+    "full_likelihood_error": 5.093170329928398e-11,
+    "ratio_error_cpu": 4.6958992250267784e-11,
+    "ratio_error_gpu64": 0.0,
+    "prior_delta_error": 2.364780463462446e-16
+  },
+  {
+    "dimensions": 3,
+    "count": 20000,
+    "stress": true,
+    "full_likelihood_dtype": "float32",
+    "dtype": "float32",
+    "condition": 12501.001874747462,
+    "array_dtypes": [
+      "float32"
+    ],
+    "live_array_bytes": 20956500,
+    "initialization_s": 0.04957929998636246,
+    "inverse_residual": 0.00200653076171875,
+    "field_max_error": 0.0005709126949398069,
+    "minimum_diffusion": 1.0009336471557617,
+    "full_likelihood_error": 0.022744429945305455,
+    "ratio_error_cpu": 0.04424528069700018,
+    "ratio_error_gpu64": 0.04424528074393774,
+    "prior_delta_error": 1.476656122698745e-08
+  },
+  {
+    "decision": "reject float32; retain float64",
+    "ratio_budget": 0.0001
+  }
+]

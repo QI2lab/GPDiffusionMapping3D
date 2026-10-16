@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 import matplotlib
 
-def plot(variables, dVect, pVect, data):
+def plot(variables, dVect, pVect, data, z_slice=None):
     """
     Plot the maximum a posteriori (MAP) estimate of the diffusion coefficient 
     as a 3D surface plot, along with particle trajectory data.
@@ -19,6 +19,9 @@ def plot(variables, dVect, pVect, data):
         matplotlib.figure.Figure: The generated figure.
     """
     
+    if getattr(variables, "dimensions", 2) == 3:
+        return plot_xy_slice(variables, dVect, pVect, z_slice)
+
     # Necessary variables
     nFineX = variables.nFineX
     nFineY = variables.nFineY
@@ -62,4 +65,25 @@ def plot(variables, dVect, pVect, data):
     # Set the same ticks for the z-axis
     ax.set_zticks(cbar_ticks)
 
+    return fig
+
+
+
+def plot_xy_slice(variables, samples, posterior, z_slice=None):
+    """Plot a simple XY diffusion slice at the nearest grid Z, in µm²/s."""
+    coordinates = variables.fineCoordinates
+    levels = np.unique(coordinates[:, 0])
+    requested = np.median(levels) if z_slice is None else z_slice
+    selected = levels[np.argmin(np.abs(levels - requested))]
+    mask = coordinates[:, 0] == selected
+    values = (variables.cInduFine[:, mask].T @ variables.cInduInduInv
+              @ samples[np.argmax(posterior)]) / 1e6
+    shape = (variables.nFineY, variables.nFineX)
+    fig, ax = plt.subplots()
+    image = ax.pcolormesh(coordinates[mask, 2].reshape(shape) / 1000,
+                         coordinates[mask, 1].reshape(shape) / 1000,
+                         values.reshape(shape), shading="auto", cmap="coolwarm")
+    ax.set(xlabel="X (µm)", ylabel="Y (µm)",
+           title=f"Diffusion at Z = {selected / 1000:g} µm")
+    fig.colorbar(image, ax=ax, label="Diffusion coefficient (µm²/s)")
     return fig

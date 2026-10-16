@@ -73,7 +73,10 @@ def covMat(coordinates1, coordinates2, covLambda, covL):
     C = np.zeros((len(coordinates1), len(coordinates2)))
     for i in range(len(coordinates1)):
         for j in range(len(coordinates2)):
-            dist = np.sqrt((coordinates1[i, 0] - coordinates2[j, 0]) ** 2 + (coordinates1[i, 1] - coordinates2[j, 1]) ** 2)
+            dist_squared = 0.0
+            for axis in range(coordinates1.shape[1]):
+                dist_squared += (coordinates1[i, axis] - coordinates2[j, axis]) ** 2
+            dist = np.sqrt(dist_squared)
             C[i, j] = (covLambda ** 2) * (np.exp(((-0.5) * ((dist) ** 2)) / (covL ** 2)))
     return C
 
@@ -112,7 +115,10 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
     nFineX = variables.nFineX
     nFineY = variables.nFineY
     epsilon = variables.epsilon
-    deltaT = data.deltaT
+    dimensions = getattr(data, "dimensions", 2)
+    if dimensions not in (2, 3):
+        raise ValueError("Only XY 2D and ZYX 3D inference are supported")
+    deltaT = data.delta_t if hasattr(data, "delta_t") else data.deltaT
     dataX = trajectories[:, 0]
     dataY = trajectories[:, 1]
     minX = min(dataX)
@@ -124,18 +130,17 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
 
     # Identical consecutive within-track pairs, without quadratic vstack copies.
     paired = trajectoriesIndex[:-1] == trajectoriesIndex[1:]
-    dataCoordinates = np.ascontiguousarray(trajectories[:-1][paired])
-    sampleCoordinates = np.ascontiguousarray(trajectories[1:][paired])
+    dataCoordinates = np.ascontiguousarray(data.starts if hasattr(data, "starts") else trajectories[:-1][paired])
+    sampleCoordinates = np.ascontiguousarray(data.ends if hasattr(data, "ends") else trajectories[1:][paired])
 
     # Find MLE assuming flat map
     diff = sampleCoordinates - dataCoordinates
-    num = np.sum(diff * diff)
-    den = 4 * deltaT * len(diff)
-    mle = num / den
+    step_mle = np.sum(diff * diff, axis=1) / (2 * dimensions * deltaT)
+    mle = np.mean(step_mle)
 
     # Estimate Hyperparameters if not chosen by user
     if covL == None:
-        covL = np.max([maxX - minX, maxY - minY]) * 0.2
+        covL = np.max(np.ptp(trajectories, axis=0)) * 0.2
     if covLambda == None:
         covLambda = mle * 0.1
 
@@ -156,12 +161,26 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
     Y = np.reshape(yTemp, -1)
     fineCoordinates = np.vstack((X, Y)).T
 
+    if dimensions == 3:
+        # Coordinates are explicitly ZYX. Timestamp is never a spatial axis.
+        low = trajectories.min(axis=0)
+        high = trajectories.max(axis=0)
+        axes = [np.linspace(low[0], high[0], variables.nInduZ),
+                np.linspace(low[1], high[1], nInduY),
+                np.linspace(low[2], high[2], nInduX)]
+        induCoordinates = np.stack(np.meshgrid(*axes, indexing="ij"), axis=-1).reshape(-1, 3)
+        axes = [np.linspace(low[0], high[0], variables.nFineZ),
+                np.linspace(low[1], high[1], nFineY),
+                np.linspace(low[2], high[2], nFineX)]
+        fineCoordinates = np.stack(np.meshgrid(*axes, indexing="ij"), axis=-1).reshape(-1, 3)
+        nIndu = len(induCoordinates)
+
     # Set up initial sample and mean of prior
     dIndu = mle * np.ones(nIndu)
     priorMean = dIndu.copy()
 
     diff64 = sampleCoordinates - dataCoordinates
-    variables.coordinate_origin = np.zeros(2)
+    variables.coordinate_origin = np.zeros(dimensions)
     if dtype == "float32":
         origin = dataCoordinates.min(axis=0)
         variables.coordinate_origin = origin
@@ -191,7 +210,7 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
 
     # Determine the mle at each individual data point
     a = xp.asarray(np.sum(diff64 * diff64, axis=1) / (4 * deltaT), dtype=dtype)
-    dMleData = a.copy()
+    dMleData = a * (2 / dimensions)
 
     @nb.jit(cache=True, nopython=True)
     def compute_vector(induCoordinates, dataCoordinates, covLambda, covL, dMleData, dIndu, nIndu, cDataIndu, smoother=1):
@@ -235,8 +254,10 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
         dData = cDataIndu @ dIndu
     if bool(xp.any(dData <= 0)) or bool(xp.any(dIndu <= 0)):
         raise ValueError("Initialization requires positive inducing and interpolated diffusion")
-    P = float(log_likelihood(dData, a, deltaT, 2, xp)
+    P = float(log_likelihood(dData, a, xp.asarray(deltaT, dtype=dtype), dimensions, xp)
               + log_prior(dIndu, priorMean, cInduInduInv))
+    variables.dimensions = dimensions
+    variables.delta_t = np.broadcast_to(deltaT, (len(dataCoordinates),)).copy()
     variables.backend = backend
     variables.a = a
 
@@ -305,8 +326,8 @@ def diffusionPointSamplerSA_nb(nIndu, cInduIndu, cInduData, cInduInduInv, cDataI
         for i in range(samples.shape[0]):
             for j in range(samples.shape[1]):
                 lhood += (
-                    -0.5 * (samples[i, j] - means[i, j]) ** 2 / (2 * dData_[i] * deltaT)
-                    - 0.5 * np.log(2 * np.pi * 2 * dData_[i] * deltaT)
+                    -0.5 * (samples[i, j] - means[i, j]) ** 2 / (2 * dData_[i] * deltaT[i])
+                    - 0.5 * np.log(2 * np.pi * 2 * dData_[i] * deltaT[i])
                 )
         prob = lhood + prior
 
@@ -376,7 +397,7 @@ def diffusionPointSampler(variables, data):
     cInduIndu = variables.cProposal
     cInduData = variables.cInduData
     cInduInduInv = variables.cInduInduInv
-    deltaT = data.deltaT
+    deltaT = variables.delta_t
     means = variables.dataCoordinates
     samples = variables.sampleCoordinates
     data = data.trajectories
@@ -412,7 +433,7 @@ def covMat_gpu(coordinates1, coordinates2, covLambda, covL):
     import cupy as cp
 
     squared = cp.zeros((len(coordinates1), len(coordinates2)), dtype=coordinates1.dtype)
-    for axis in range(2):
+    for axis in range(coordinates1.shape[1]):
         squared += (coordinates1[:, axis, None] - coordinates2[None, :, axis])**2
     return covLambda**2 * cp.exp(-.5 * squared / covL**2)
 
@@ -453,7 +474,7 @@ _proposal_reduction = None
 _proposal_reduction32 = None
 
 
-def gpu_likelihood_difference(old, column, change, a):
+def gpu_likelihood_difference(old, column, change, a, dimensions=2):
     """Fuse the measured proposal likelihood and positivity reduction."""
     import cupy as cp
 
@@ -461,22 +482,22 @@ def gpu_likelihood_difference(old, column, change, a):
     if old.dtype == cp.float32:
         if _proposal_reduction32 is None:
             _proposal_reduction32 = cp.ReductionKernel(
-                "float32 old, float32 column, float32 change, float32 a",
+                "float32 old, float32 column, float32 change, float32 a, float32 half_dimension",
                 "float32 result",
                 "old + column * change > 0 ? "
-                "-logf((old + column * change) / old) "
+                "-half_dimension * logf((old + column * change) / old) "
                 "-a * (1.0f / (old + column * change) - 1.0f / old) : -(1.0f/0.0f)",
-                "a + b", "result = a", "0", "gpd_proposal_float32")
-        return _proposal_reduction32(old, column, change, a)
+                "a + b", "result = a", "0", "gpd_proposal_float32_spatial")
+        return _proposal_reduction32(old, column, change, a, dimensions / 2)
     if _proposal_reduction is None:
         _proposal_reduction = cp.ReductionKernel(
-            "float64 old, float64 column, float64 change, float64 a",
+            "float64 old, float64 column, float64 change, float64 a, float64 half_dimension",
             "float64 result",
             "old + column * change > 0 ? "
-            "-log((old + column * change) / old) "
+            "-half_dimension * log((old + column * change) / old) "
             "-a * (1.0 / (old + column * change) - 1.0 / old) : -(1.0/0.0)",
-            "a + b", "result = a", "0", "gpd_proposal_float64")
-    return _proposal_reduction(old, column, change, a)
+            "a + b", "result = a", "0", "gpd_proposal_float64_spatial")
+    return _proposal_reduction(old, column, change, a, dimensions / 2)
 
 
 def diffusionPointSampler_gpu(variables):
@@ -498,7 +519,7 @@ def diffusionPointSampler_gpu(variables):
         new_alpha = old_alpha + change
         inducing = inducing_host + proposal_host[:, k] * change
         if np.all(inducing > 0):
-            delta = float(gpu_likelihood_difference(v.dData, v.cInduData[k], change, v.a))
+            delta = float(gpu_likelihood_difference(v.dData, v.cInduData[k], change, v.a, v.dimensions))
             # Exact quadratic-prior difference for a column of R, R^-1 R_k=e_k.
             delta += (-change * (inducing_host - mean_host)[k]
                       -.5 * change**2 * proposal_host[k, k])
