@@ -3,9 +3,9 @@
 ## Introduction
 
 Infer spatial diffusion maps from linked particle trajectories using Gaussian
-processes. This project extends the method described in the
+processes. This project extends the 2D method described in the
 [DiffMAP-GP: Continuous 2D diffusion maps from particle trajectories without data binning using Gaussian processes](https://doi.org/10.1016/j.bpr.2024.100194)
-by Kumar et al., implemented in
+by Kumar et al. to 3D tracks. Direct extension of the originally implementation at
 [LabPresse/GPDiffusionMapping](https://github.com/LabPresse/GPDiffusionMapping).
 Example and experimental datasets are in `data/`.
 
@@ -21,8 +21,6 @@ git clone https://github.com/dpshepherd/GPDiffusionMapping.git
 cd GPDiffusionMapping
 uv sync
 ```
-
-Inference uses CPU float64 with NumPy/Numba; no GPU installation is needed.
 
 ## Usage
 
