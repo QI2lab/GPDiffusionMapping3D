@@ -20,8 +20,9 @@ uv sync --group dev --extra gpu
 
 Windows/Linux select the project's GPU extra through the default `gpu` group.
 This installs `cupy-cuda12x[ctk]` and its CUDA component wheels; an NVIDIA driver
-is required. The existing inference implementation still uses CPU; installing
-CuPy does not establish GPU inference support.
+is required. The existing 2D inference now supports explicit CPU/GPU float64
+execution. Installation alone does not establish scientific GPU validation;
+executed results and operating conditions are recorded in `docs/stage-validation.txt`.
 
 For a CPU-only environment:
 
@@ -38,8 +39,7 @@ The standalone migration validation is:
 uv run --no-sync python scripts/validate_migration.py
 ```
 
-Scientific test directories and markers are prepared for Stage 3; no formal
-tests exist yet. Once supplied, run hardware suites separately:
+Mathematics and physics tests are separated by hardware. Run the suites separately:
 
 ```bash
 uv run --no-sync python -m pytest tests/cpu --strict-markers -q
@@ -60,6 +60,30 @@ The data file should be a csv file with 3 columns: `particle #`, `xPos`, and `yP
 The code will output an image and save it to the `output/` directory.
 
 The code is set to run with default hyperparameters, but the user can change the hyperparameters as needed by including them as keyword arguments in the `analyze` function. A dictionary of the hyperparameters can be found in `model.py`.
+
+## Validated precision and stage status
+
+2D float64 CPU/GPU inference has passed the simulation and mathematical gates.
+Select GPU explicitly through the computational API:
+
+```python
+import data_reader
+import model
+
+data = data_reader.data_reader("data/synthetic/simulated_flat_Dmap.csv")
+variables, samples, posterior = model.analyze(data, backend="gpu", seed=41)
+```
+
+CPU remains available with `backend="cpu"` and does not import CuPy. GPU float32
+was rejected for inaccurate proposal likelihood ratios and remains a diagnostic
+option with an explicit warning; use float64 for inference.
+
+Timestamped 3D numerical and physical-recovery cases pass, but independent
+chain-mean agreement failed at 1,000 production iterations due to poor mixing.
+An extended 5,000-iteration comparison is in progress. Stage 4 is incomplete;
+the Stage 5 refactoring and CLI have not started. The GPU suite includes this
+long-running comparison. See `docs/stage-validation.txt` and
+`docs/figures/3d-sampling-1000.png` for evidence.
 
 ## Assumed Units
 
