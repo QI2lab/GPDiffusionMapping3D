@@ -1,11 +1,11 @@
+"""Inference setup, warmup, production sampling and result collection."""
+
 import numpy as np
-from types import SimpleNamespace
 import functions
 import copy
 import time
-import pickle
 
-# NECESSARY VARIABLES TO RUN THE GIBBS SAMPLER
+# Existing GP and sampler parameter defaults
 PARAMETERS = {
     # General Knowns
     "nInduZ": 5,
@@ -41,7 +41,6 @@ PARAMETERS = {
 }
 
 
-# THIS FUNCTION RUNS THE GIBBS SAMPLER
 def analyze(
     data,
     nIter=1000,
@@ -204,7 +203,6 @@ def analyze(
         functions.prepare_block_proposals(variables, block_size)
     if diagnostics:
         variables.proposal_stats = np.zeros((5, variables.nProposals))
-    warmup_trace = []
     endTime = time.time()
 
     # Progress Marker
@@ -213,9 +211,71 @@ def analyze(
 
     # Get number of iterations
 
+    startTime = time.time()
+    warmup_trace = run_warmup(
+        variables, data, burnIter, stabilizeIter, burn_in,
+        adaptation, diagnostics,
+    )
+
+    def host_array(value):
+        return value.get() if backend == "gpu" else np.array(value, copy=True)
+
+    initial_inducing = host_array(variables.dIndu)
+    initial_alpha = host_array(variables.cInduInduInv @ variables.dIndu)
+    if diagnostics:
+        warmup_stats = variables.proposal_stats.copy()
+        variables.proposal_stats[:] = 0
+
+    map_variables, dVect, pVect, production_acceptance = run_production(
+        variables, data, nIter, backend
+    )
+
+    endTime = time.time()
+
+    print(
+        str(nIter) + " iterations in " + str(endTime - startTime) + " seconds."
+    )
+
+    map_variables.sampling_metadata = {
+        "annealing_sweeps": burnIter,
+        "stabilization_sweeps": stabilizeIter,
+        "discarded_fixed_width_sweeps": burn_in,
+        "production_sweeps": nIter,
+        "epsilon": np.array(variables.epsilon, copy=True),
+        "initial_inducing": initial_inducing,
+        "initial_alpha": initial_alpha,
+        "final_alpha": host_array(variables.cInduInduInv @ variables.dIndu),
+        "acceptance_fraction": production_acceptance / nIter,
+        "adaptation": adaptation,
+        "proposal": proposal,
+    }
+    if diagnostics:
+        map_variables.sampling_metadata["production_proposal_stats"] = (
+            variables.proposal_stats.copy()
+        )
+        map_variables.sampling_metadata["warmup_proposal_stats"] = warmup_stats
+        map_variables.warmup_trace = warmup_trace
+        map_variables.sampling_metadata["proposal_stat_names"] = np.array(
+            [
+                "inducing_support_rejections",
+                "observation_support_rejections",
+                "metropolis_rejections",
+                "accepted_squared_displacement",
+                "proposal_standard_deviation_sum",
+            ]
+        )
+
+    return_arrays_to_host(map_variables, backend)
+    return map_variables, dVect, pVect
+
+
+def run_warmup(
+    variables, data, burnIter, stabilizeIter, burn_in, adaptation, diagnostics,
+):
+    """Run annealing, width adaptation and fixed-width discarded equilibration."""
+    warmup_trace = []
     # Redefine perturbation magnitude for samples
     variables.epsilon = np.ones(variables.nProposals)
-    startTime = time.time()
 
     # Initial temp and cooling rate for targeted annealing
     initTemp = 7.5
@@ -313,16 +373,12 @@ def analyze(
         variables, _ = functions.diffusionPointSampler(variables, data)
         print()
 
-    def host_array(value):
-        return value.get() if backend == "gpu" else np.array(value, copy=True)
+    return warmup_trace
 
-    initial_inducing = host_array(variables.dIndu)
-    initial_alpha = host_array(variables.cInduInduInv @ variables.dIndu)
+
+def run_production(variables, data, nIter, backend):
+    """Retain every production draw and collect the highest-posterior state."""
     production_acceptance = np.zeros(variables.nProposals)
-    if diagnostics:
-        warmup_stats = variables.proposal_stats.copy()
-        variables.proposal_stats[:] = 0
-
     ## MCMC SAMPLING ##
 
     # Initialize outputs
@@ -338,7 +394,6 @@ def analyze(
 
         # Sample diffusion map
         variables, accCount = functions.diffusionPointSampler(variables, data)
-        accVect += accCount
         production_acceptance += accCount
 
         # Save the sample
@@ -351,41 +406,11 @@ def analyze(
 
         print(f"({time.time() - t:.3f}s)")
 
-    endTime = time.time()
+    return map_variables, dVect, pVect, production_acceptance
 
-    print(
-        str(nIter) + " iterations in " + str(endTime - startTime) + " seconds."
-    )
 
-    map_variables.sampling_metadata = {
-        "annealing_sweeps": burnIter,
-        "stabilization_sweeps": stabilizeIter,
-        "discarded_fixed_width_sweeps": burn_in,
-        "production_sweeps": nIter,
-        "epsilon": np.array(variables.epsilon, copy=True),
-        "initial_inducing": initial_inducing,
-        "initial_alpha": initial_alpha,
-        "final_alpha": host_array(variables.cInduInduInv @ variables.dIndu),
-        "acceptance_fraction": production_acceptance / nIter,
-        "adaptation": adaptation,
-        "proposal": proposal,
-    }
-    if diagnostics:
-        map_variables.sampling_metadata["production_proposal_stats"] = (
-            variables.proposal_stats.copy()
-        )
-        map_variables.sampling_metadata["warmup_proposal_stats"] = warmup_stats
-        map_variables.warmup_trace = warmup_trace
-        map_variables.sampling_metadata["proposal_stat_names"] = np.array(
-            [
-                "inducing_support_rejections",
-                "observation_support_rejections",
-                "metropolis_rejections",
-                "accepted_squared_displacement",
-                "proposal_standard_deviation_sum",
-            ]
-        )
-
+def return_arrays_to_host(map_variables, backend):
+    """Synchronize CUDA once and return result arrays in physical coordinates."""
     if backend == "gpu":
         import cupy as cp
 
@@ -405,4 +430,4 @@ def analyze(
                 getattr(map_variables, key) + map_variables.coordinate_origin,
             )
         map_variables.coordinate_origin = np.zeros(map_variables.dimensions)
-    return map_variables, dVect, pVect
+

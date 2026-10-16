@@ -1,0 +1,44 @@
+STAGE 5 NUMERICAL REFACTORING
+
+Begins after Stage 4 and its required-CUDA suite passed (30 tests, zero skips).
+The original functions.py entry points remain importable; implementations now
+live in gp_math.py, gp_initialization.py and metropolis.py. Initialization has
+separate spatial-grid, regularized-covariance and CPU smoothing functions.
+The unused nested 2D posterior helper was removed. The CPU reference posterior
+arithmetic was extracted without changing its operation order. model.py now
+separates warmup, production and final host-array collection.
+
+No target, GP parameters, jitter, proposals, RNG order, annealing, adaptation,
+production precision or GPU transfer location is intentionally changed here.
+2D legacy inference and the repaired 3D defaults remain available independently
+of file IO, plotting and the forthcoming command-line wrapper.
+
+After separating the modules:
+    uv run --no-sync python -m pytest tests/cpu/test_mathematics.py --strict-markers -q
+11 passed, 9.93 s.
+    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu/test_mathematics.py --strict-markers -q
+11 passed, 5.25 s.
+
+After initialization, CPU posterior and warmup/production extractions:
+    uv run --no-sync python -m pytest tests/cpu/test_mathematics.py tests/cpu/test_sampling.py --strict-markers -q
+15 passed, 26.97 s.
+    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu/test_mathematics.py tests/gpu/test_sampling.py tests/gpu/test_3d.py -k 'not physical_field_recovery and not regular_and_fine_simulator and not independent_3d_chain_means' --strict-markers -q
+18 passed, 9 deselected, zero skips, 112.99 s. The selection contains independent
+posterior quadrature and full-density acceptance/125-value geometry checks.
+The entire CPU/GPU physical suite remains required after the final CLI work.
+
+Isolated baseline before the function extractions (after file separation):
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-before-refactor.json
+20k smooth-field transitions, 125 inducing values, float64, 1000 production
+sweeps after 2000 annealing + 4000 adaptation + 1000 discarded fixed-width.
+CPU full inference 103.57915 s; CUDA 97.26467 s. Compilation/context/kernel
+warmup is separate: CPU 4.75712 s, CUDA .45288 s. Physical MAP RMS 7.3316% /
+5.0659%; independent full-density errors <=6.185e-10 / 4.366e-11. CUDA pool
+capacity 201347584 bytes. Timings include initialization and transfers after
+warmup, not cold Python/CUDA import. This is not convergence evidence for a
+single 1000-draw run; the four-chain 20000-draw campaigns provide that evidence.
+
+An earlier default check overlapped targeted GPU tests. Its numerical/physical
+results are valid, but its GPU timing is explicitly discarded in
+sampling-defaults-initial-check.json. The complete sequential benchmark above
+was repeated with no concurrent inference/tests before accepting its timings.

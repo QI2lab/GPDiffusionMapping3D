@@ -1,0 +1,428 @@
+"""Sequential CPU and CUDA Metropolis proposals for the exact GP target."""
+
+import numpy as np
+import numba as nb
+
+from gp_math import (
+    indexShuffler, logNormpdf, gpu_likelihood_difference,
+    proposal_log_ratio, log_likelihood, log_prior,
+)
+
+
+@nb.jit(nopython=True, cache=True)
+def diffusionPointSamplerSA_nb(
+    nIndu,
+    cInduIndu,
+    cInduData,
+    cInduInduInv,
+    cDataIndu,
+    deltaT,
+    means,
+    samples,
+    data,
+    chol,
+    dInduOld,
+    pOld,
+    dDataOld,
+    priorMean,
+    covLambda,
+    epsilon,
+    temperature,
+    diagnostics=None,
+    additive=False,
+):
+    """Perform one sequential inverse-coordinate Metropolis sweep."""
+
+    # Calculate probabilities of induced samples
+
+    # Initialize inverse space
+    alphaVect = cInduInduInv @ dInduOld
+
+    # Counter for acceptances
+    accCounter = np.zeros(np.shape(alphaVect))
+
+    # Shuffle the index to sample through alpha vect randomly
+    shuffledIndex = indexShuffler(nIndu)
+
+    # Propose new dIndu by sampling random points in inverse space
+    for pointIndex in shuffledIndex:
+        # Propose new alpha point
+        oldAlphaPoint = alphaVect[pointIndex]
+        a = np.random.exponential(epsilon[pointIndex])
+        proposal_scale = a if additive else a * oldAlphaPoint
+        alphaDiff = proposal_scale * np.random.randn()
+        newAlphaPoint = oldAlphaPoint + alphaDiff
+        if diagnostics is not None:
+            diagnostics[4, pointIndex] += abs(proposal_scale)
+
+        # Incorporate new point into dInduNew and dDataNew
+        dInduNew = dInduOld + cInduIndu[:, pointIndex] * alphaDiff
+        dDataNew = dDataOld + cInduData[pointIndex, :] * alphaDiff
+
+        # Make sure sampled diffusion values are all positive
+        positive_inducing = np.all(dInduNew > 0)
+        positive_data = np.all(dDataNew > 0)
+        if diagnostics is not None:
+            if not positive_inducing:
+                diagnostics[0, pointIndex] += 1
+            elif not positive_data:
+                diagnostics[1, pointIndex] += 1
+        if positive_data and positive_inducing:
+            # Probability of old and new function
+            pNew = cpu_log_posterior(
+                dInduNew, dDataNew, priorMean, cInduInduInv,
+                means, samples, deltaT,
+            )
+
+            # Compute acceptance probability from tempered distribution
+            logPosteriorRatio = pNew - pOld
+            logPropRatio = (
+                0.0
+                if additive
+                else logNormpdf(diff=alphaDiff, sigma=a * newAlphaPoint)
+                - logNormpdf(diff=alphaDiff, sigma=a * oldAlphaPoint)
+            )
+
+            # Apply simulated annealing by incorporating temperature
+            if (logPosteriorRatio / temperature) + logPropRatio > np.log(
+                np.random.rand()
+            ):
+                accCounter[pointIndex] = 1
+                dInduOld = dInduNew
+                dDataOld = dDataNew
+                pOld = pNew
+                alphaVect[pointIndex] = newAlphaPoint
+                if diagnostics is not None:
+                    diagnostics[3, pointIndex] += alphaDiff**2
+            elif diagnostics is not None:
+                diagnostics[2, pointIndex] += 1
+    return dInduOld, pOld, dDataOld, accCounter
+
+
+def diffusionPointSampler(variables, data):
+    """Update one complete sequential Metropolis sweep.
+
+    Parameters
+    ----------
+    variables : types.SimpleNamespace
+        Current diffusion state, fixed GP matrices and proposal settings.
+    data : types.SimpleNamespace
+        Prepared observations for the original CPU reference path.
+
+    Returns
+    -------
+    tuple
+        Updated state and accepted proposals per coordinate or block.
+    """
+
+    if getattr(variables, "proposal", "relative") == "blocked":
+        return sample_blocks(variables)
+    if getattr(variables, "backend", "cpu") == "gpu":
+        return diffusionPointSampler_gpu(variables)
+
+    # Necessary variables
+    cInduIndu = variables.cProposal
+    cInduData = variables.cInduData
+    cInduInduInv = variables.cInduInduInv
+    deltaT = variables.delta_t
+    means = variables.dataCoordinates
+    samples = variables.sampleCoordinates
+    data = data.trajectories
+    chol = variables.cInduInduChol
+    dInduOld = variables.dIndu
+    cDataIndu = variables.cDataIndu
+    P = variables.P
+    dData = variables.dData
+    priorMean = variables.priorMean
+    covLambda = variables.covLambda
+    epsilon = variables.epsilon
+    nIndu = variables.nIndu
+    temperature = variables.temperature
+
+    # Run numba version
+    dIndu, P, dData, accCount = diffusionPointSamplerSA_nb(
+        nIndu,
+        cInduIndu,
+        cInduData,
+        cInduInduInv,
+        cDataIndu,
+        deltaT,
+        means,
+        samples,
+        data,
+        chol,
+        dInduOld,
+        P,
+        dData,
+        priorMean,
+        covLambda,
+        epsilon,
+        temperature,
+        getattr(variables, "proposal_stats", None),
+        getattr(variables, "proposal", "relative") == "additive",
+    )
+    variables.dIndu = dIndu
+    variables.P = P
+    variables.dData = dData
+
+    accRate = 100 * np.sum(accCount) / nIndu
+
+    print(f"{accRate:.2f}%", end=" ")
+
+    return variables, accCount
+
+
+def diffusionPointSampler_gpu(variables):
+    """Sequential Metropolis proposals with resident CuPy numerical arrays."""
+    import cupy as cp
+
+    v = variables
+    alpha = cp.asnumpy(v.cInduInduInv @ v.dIndu)
+    inducing_host = cp.asnumpy(v.dIndu)
+    mean_host = cp.asnumpy(v.priorMean)
+    proposal_host = cp.asnumpy(v.cProposal)
+    accepted = np.zeros(v.nIndu)
+    diagnostics = getattr(v, "proposal_stats", None)
+    # Use the same host RNG for order and proposal draws. Two identically
+    # seeded NumPy/Numba states would reuse random values across decisions.
+    for k in indexShuffler.py_func(v.nIndu):
+        old_alpha = alpha[k]
+        scale = np.random.exponential(v.epsilon[k])
+        proposal_scale = (
+            scale
+            if getattr(v, "proposal", "relative") == "additive"
+            else scale * old_alpha
+        )
+        change = proposal_scale * np.random.randn()
+        if v.dData.dtype == cp.float32:
+            change = np.float32(change)
+        new_alpha = old_alpha + change
+        if diagnostics is not None:
+            diagnostics[4, k] += abs(proposal_scale)
+        inducing = inducing_host + proposal_host[:, k] * change
+        if np.all(inducing > 0):
+            delta = float(
+                gpu_likelihood_difference(
+                    v.dData, v.cInduData[k], change, v.a, v.dimensions
+                )
+            )
+            # Exact quadratic-prior difference for a column of R, R^-1 R_k=e_k.
+            if np.isneginf(delta):
+                if diagnostics is not None:
+                    diagnostics[1, k] += 1
+                continue  # Match CPU positivity rejection before an acceptance draw.
+            delta += (
+                -change * (inducing_host - mean_host)[k]
+                - 0.5 * change**2 * proposal_host[k, k]
+            )
+            correction = (
+                0.0
+                if getattr(v, "proposal", "relative") == "additive"
+                else proposal_log_ratio(change, scale, old_alpha, new_alpha)
+            )
+            if delta / v.temperature + correction > np.log(np.random.rand()):
+                accepted[k] = 1
+                v.dIndu += v.cProposal[:, k] * change
+                v.dData += v.cInduData[k] * change
+                inducing_host = inducing
+                v.P += delta
+                alpha[k] = new_alpha
+                if diagnostics is not None:
+                    diagnostics[3, k] += change**2
+            elif diagnostics is not None:
+                diagnostics[2, k] += 1
+        elif diagnostics is not None:
+            diagnostics[0, k] += 1
+    print(f"{100 * accepted.mean():.2f}%", end=" ")
+    return v, accepted
+
+
+def prepare_block_proposals(v, block_size=16):
+    """Freeze prior-whitened Fisher directions without changing the posterior.
+
+    The positive-definite Fisher approximation is used only for a fixed
+    symmetric proposal covariance. It is not an approximation to the target.
+    """
+    xp = np
+    if v.backend == "gpu":
+        import cupy as cp
+
+        xp = cp
+    chol = v.cInduInduChol
+    design = v.cDataIndu @ chol
+    precision = xp.eye(v.nIndu) + design.T @ (
+        (v.dimensions / (2 * v.dData**2))[:, None] * design
+    )
+    factor = xp.linalg.cholesky(precision)
+    v.block_directions = chol @ xp.linalg.solve(factor.T, xp.eye(v.nIndu))
+    v.block_basis = xp.ascontiguousarray((v.cDataIndu @ v.block_directions).T)
+    v.block_prior_directions = v.cInduInduInv @ v.block_directions
+    v.block_prior_precision = v.block_directions.T @ v.block_prior_directions
+    v.block_size = block_size
+    v.nProposals = (v.nIndu + block_size - 1) // block_size
+    if v.backend == "gpu":
+        v.block_host = tuple(
+            cp.asnumpy(x)
+            for x in (
+                v.block_directions,
+                v.block_prior_directions,
+                v.block_prior_precision,
+                v.priorMean,
+            )
+        )
+
+
+@nb.njit(cache=True)
+def sample_blocks_nb(
+    inducing,
+    field,
+    posterior,
+    prior_mean,
+    directions,
+    basis,
+    prior_directions,
+    prior_precision,
+    a,
+    dimensions,
+    block_size,
+    epsilon,
+    temperature,
+    diagnostics,
+):
+    """Sequential symmetric block MH with exact Gaussian likelihood ratios."""
+    accepted = np.zeros(len(epsilon))
+    for block in indexShuffler(len(epsilon)):
+        low = block * block_size
+        high = min(len(inducing), low + block_size)
+        change = epsilon[block] * np.random.randn(high - low)
+        inducing_change = (
+            np.ascontiguousarray(directions[:, low:high]) @ change
+        )
+        if diagnostics is not None:
+            diagnostics[4, block] += epsilon[block]
+        if np.any(inducing + inducing_change <= 0):
+            if diagnostics is not None:
+                diagnostics[0, block] += 1
+            continue
+        field_change = change @ basis[low:high]
+        proposed = field + field_change
+        if np.any(proposed <= 0):
+            if diagnostics is not None:
+                diagnostics[1, block] += 1
+            continue
+        difference = 0.0
+        for j in range(len(field)):
+            difference += -dimensions / 2 * np.log(proposed[j] / field[j]) - a[
+                j
+            ] * (1 / proposed[j] - 1 / field[j])
+        difference -= change @ (
+            np.ascontiguousarray(prior_directions[:, low:high].T)
+            @ (inducing - prior_mean)
+        )
+        difference -= (
+            0.5
+            * change
+            @ (
+                np.ascontiguousarray(prior_precision[low:high, low:high])
+                @ change
+            )
+        )
+        if difference / temperature > np.log(np.random.rand()):
+            inducing += inducing_change
+            field = proposed
+            posterior += difference
+            accepted[block] = 1
+            if diagnostics is not None:
+                diagnostics[3, block] += change @ change
+        elif diagnostics is not None:
+            diagnostics[2, block] += 1
+    return inducing, field, posterior, accepted
+
+
+def sample_blocks(v):
+    """Apply dependent block proposals in order on explicit CPU or CUDA."""
+    diagnostics = getattr(v, "proposal_stats", None)
+    if v.backend == "cpu":
+        v.dIndu, v.dData, v.P, accepted = sample_blocks_nb(
+            v.dIndu,
+            v.dData,
+            v.P,
+            v.priorMean,
+            v.block_directions,
+            v.block_basis,
+            v.block_prior_directions,
+            v.block_prior_precision,
+            v.a,
+            v.dimensions,
+            v.block_size,
+            v.epsilon,
+            v.temperature,
+            diagnostics,
+        )
+    else:
+        import cupy as cp
+
+        directions, prior_directions, prior_precision, mean = v.block_host
+        inducing = cp.asnumpy(v.dIndu)
+        accepted = np.zeros(v.nProposals)
+        for block in indexShuffler.py_func(v.nProposals):
+            low = block * v.block_size
+            high = min(v.nIndu, low + v.block_size)
+            change = v.epsilon[block] * np.random.randn(high - low)
+            inducing_change = directions[:, low:high] @ change
+            if diagnostics is not None:
+                diagnostics[4, block] += v.epsilon[block]
+            if np.any(inducing + inducing_change <= 0):
+                if diagnostics is not None:
+                    diagnostics[0, block] += 1
+                continue
+            field_change = cp.asarray(change) @ v.block_basis[low:high]
+            difference = float(
+                gpu_likelihood_difference(
+                    v.dData, field_change, 1.0, v.a, v.dimensions
+                )
+            )
+            if np.isneginf(difference):
+                if diagnostics is not None:
+                    diagnostics[1, block] += 1
+                continue
+            difference -= change @ (
+                prior_directions[:, low:high].T @ (inducing - mean)
+            )
+            difference -= (
+                0.5 * change @ (prior_precision[low:high, low:high] @ change)
+            )
+            if difference / v.temperature > np.log(np.random.rand()):
+                v.dIndu += cp.asarray(inducing_change)
+                v.dData += field_change
+                inducing += inducing_change
+                v.P += difference
+                accepted[block] = 1
+                if diagnostics is not None:
+                    diagnostics[3, block] += change @ change
+            elif diagnostics is not None:
+                diagnostics[2, block] += 1
+    print(f"{100 * accepted.mean():.2f}%", end=" ")
+    return v, accepted
+
+
+@nb.njit(cache=True)
+def cpu_log_posterior(
+    dIndu_, dData_, priorMean, cInduInduInv, means, samples, deltaT,
+):
+    """Evaluate the original full-density CPU arithmetic in its original order."""
+    # Prior ignoring normalization
+    diff = dIndu_ - priorMean
+    prior = -0.5 * (diff.T @ (cInduInduInv @ diff))
+
+    # Likelihood of the data
+    lhood = 0
+    for i in range(samples.shape[0]):
+        for j in range(samples.shape[1]):
+            lhood += -0.5 * (samples[i, j] - means[i, j]) ** 2 / (
+                2 * dData_[i] * deltaT[i]
+            ) - 0.5 * np.log(2 * np.pi * 2 * dData_[i] * deltaT[i])
+    prob = lhood + prior
+
+    return prob
+

@@ -27,7 +27,10 @@ gpu = ["gpdiffusionmapping[gpu]; sys_platform == 'linux' or sys_platform == 'win
 default-groups = ["gpu"]
 
 [tool.setuptools]
-py-modules = ["data_reader", "functions", "model", "plotting"]
+py-modules = [
+    "data_reader", "functions", "gp_math", "gp_initialization",
+    "metropolis", "model", "plotting",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/cpu", "tests/gpu"]
