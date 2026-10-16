@@ -146,6 +146,16 @@ Report: sampling-blocked8-heldout.json; figures/sampling-blocked8-heldout.png.
 Command exited zero:
     GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/run_sampling_repair.py --proposal blocked --block-size 8 --heldout --directory validation_artifacts/repair-blocked8-heldout --output docs/sampling-blocked8-heldout.json
 
-The full required-CUDA suite is still running; its fresh uniform-field
-four-chain test passed. Default promotion and Stage 5 remain pending the
-remaining scientific tests.
+Full required-CUDA suite PASSED: 30 passed, zero skips, 2044.70 seconds.
+    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
+This includes fresh four-chain convergence tests for both fields, independent
+posterior quadrature, prescribed proposal densities, and 2D/3D physical checks.
+Together with the separate 40-test CPU pass and held-out confirmation, this
+completes the sampling-repair gate. Stage 5 is now authorized by the standing
+stage sequence. The 3D default selects blocks of 8 with diminishing tuning,
+2000 annealing, 4000 temperature-one adaptation, and 1000 additional discarded
+sweeps. 2D defaults remain legacy relative proposals with their original
+schedule. Explicit proposal="relative", adaptation="legacy" retains the 3D
+reference; historical recovery helpers request it explicitly. Production
+defaults remain 1000 as required by the plan; convergence was established with
+four chains and 20000 draws each, not claimed for a short single default run.

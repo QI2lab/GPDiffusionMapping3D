@@ -105,7 +105,11 @@ def recovery(
     data_seed=None,
     burn_in=0,
 ):
-    """Recover a predeclared central cube with the original sampler schedule."""
+    """Recover a predeclared central cube with the original sampler schedule.
+
+    This historical protocol explicitly retains relative proposals. Repaired
+    multi-chain inference is validated separately by run_sampling_repair.py.
+    """
     data = prepared(
         seed=seed if data_seed is None else data_seed,
         feature=feature,
@@ -128,6 +132,8 @@ def recovery(
             backend=backend,
             seed=seed,
             burn_in=burn_in,
+            proposal="relative",
+            adaptation="legacy",
             nInduX=5,
             nInduY=5,
             nInduZ=5,

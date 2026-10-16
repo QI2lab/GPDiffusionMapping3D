@@ -5,7 +5,8 @@ Stages 0, 1, 2 and 3 are complete. Stage 2 rejected float32 and retained
 float64. Stage 4 mathematical and physical recovery checks passed, but
 the original sampler failed independent-chain mixing. The user-authorized
 blocked sampler has now passed development and held-out convergence on CPU
-and CUDA. The full scientific suite is pending. Stage 5 has not started.
+and CUDA. The full scientific suite passed; Stage 4 is complete. Stage 5
+refactoring and CLI work follow this gate.
 See sampling-repair-plan.txt and the repair reports.
 
 Environment: Python 3.12.13, NumPy 2.0.2, Numba 0.60.0, SciPy 1.14.1,
@@ -118,8 +119,13 @@ are recorded in JSON but are not isolated CPU/GPU speed measurements.
 
 Reports: sampling-blocked8-development.json, sampling-blocked8-heldout.json;
 trace/rank plots: figures/sampling-blocked8-{development,heldout}.png.
-The full required-GPU suite is still running. Defaults remain unchanged until
-its remaining scientific checks pass; Stage 5 has not begun.
+The full required-GPU suite passed 30 tests, zero skips, in 2044.70 s, including
+fresh four-chain convergence tests for both fields. The separate CPU suite
+passed 40 tests in 425.28 s. Stage 4 sampling repair is complete.
+3D defaults now use the validated eight-coordinate blocked warmup schedule;
+2D defaults retain the original relative proposals and legacy schedule.
+Default production length remains 1000; finite-chain convergence was validated
+with four chains and 20000 draws, not a short single default run.
 
 INSTALLATION AND EXECUTION
 

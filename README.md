@@ -94,15 +94,21 @@ development checks on both CPU and CUDA: maximum rank/folded R-hat 1.00536,
 minimum bulk ESS 2,127 across all 278 monitored quantities, and physical RMS
 recovery below 6.84%. Held-out confirmation also passed: maximum R-hat 1.00501,
 minimum bulk ESS 2,083 and recovery below 6.33%. The full required-GPU suite
-is pending; defaults still select the original sampler. Stage 5 has not
-started. See `docs/sampling-repair-plan.txt`,
+passed 30 tests with zero skips; the separate CPU suite passed 40 tests.
+Stage 4 is complete. Stage 5 refactoring and CLI work follow this gate.
+See `docs/sampling-repair-plan.txt`,
 `docs/sampling-blocked8-development.json` and
 `docs/figures/sampling-blocked8-development.png`. The full GPU suite includes
 four-chain convergence checks for both uniform and smooth fields.
 
-The computational API accepts `burn_in=10000` to request extra discarded sweeps
-after the original annealing and adaptation. Proposal widths remain fixed during
-these additional sweeps and production; the default remains zero extra sweeps.
+For 3D, the computational API now defaults to eight-coordinate blocked proposals,
+2,000 annealing sweeps, 4,000 temperature-one adaptation sweeps and 1,000
+additional discarded sweeps. Geometry and widths stay fixed in production.
+Use `proposal="relative", adaptation="legacy"` for the historical 3D reference.
+2D retains its original defaults. `burn_in` overrides additional discarded
+sweeps. Production defaults to 1,000 as before; the convergence validation used
+four independent chains with 20,000 production sweeps each. A short single
+run does not establish posterior convergence.
 
 ## Assumed Units
 

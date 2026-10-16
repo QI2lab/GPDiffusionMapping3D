@@ -98,7 +98,7 @@ def test_independent_3d_chain_means_with_sampling_uncertainty(
                 backend,
                 feature,
                 index,
-                "blocked",
+                None,
                 False,
                 False,
                 8,

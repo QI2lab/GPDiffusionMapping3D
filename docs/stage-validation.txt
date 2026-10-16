@@ -304,5 +304,11 @@ Block size16 failed the smooth-field convergence gate at 20000 production
 sweeps; block size8 passed development for both fields and backends at the
 same cap, seeds and unchanged thresholds. See sampling-repair-plan.txt,
 sampling-repair-mathematics.txt and sampling-blocked8-development.json.
-Held-out confirmation and the full required-GPU suite are running; no Stage 5
-or default promotion is claimed from development alone.
+Held-out confirmation passed both fields and backends, all original thresholds:
+maximum R-hat 1.005008, minimum bulk/tail ESS 2083.29/4113.03, maximum mean
+MCSE/SD .02191, MAP RMS 3.426-6.326%, simultaneous CPU/CUDA mean agreement.
+    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
+Full suite: 30 passed, zero skips, 2044.70 s, including both fresh four-chain
+convergence tests. Stage 4 sampling repair PASSED. Stage 5 may now proceed.
+3D defaults select block size8 and the validated warmup schedule. The legacy
+3D relative proposal remains explicit; 2D defaults are unchanged.

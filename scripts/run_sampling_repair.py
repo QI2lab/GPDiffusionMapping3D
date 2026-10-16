@@ -71,6 +71,9 @@ def run_chain(
         )
     prefix = directory / f"{backend}-{index}"
     started = time.perf_counter()
+    proposal_options = (
+        {} if proposal is None else {"proposal": proposal, "block_size": block_size}
+    )
     with prefix.with_suffix(".log").open("w", buffering=1) as stream:
         with contextlib.redirect_stdout(stream):
             v, draws, posterior = model.analyze(
@@ -78,8 +81,7 @@ def run_chain(
                 nIter=1000 if pilot else 20000,
                 backend=backend,
                 seed=seed,
-                proposal=proposal,
-                block_size=block_size,
+                **proposal_options,
                 adaptation="diminishing",
                 annealing_sweeps=500 if pilot else 2000,
                 adaptation_sweeps=4000,
@@ -122,7 +124,7 @@ def run_chain(
         "seed": seed,
         "data_seed": data_seed,
         "feature": feature,
-        "proposal": proposal,
+        "proposal": v.sampling_metadata["proposal"],
         "block_size": block_size,
         "device": device,
         "seconds": time.perf_counter() - started,

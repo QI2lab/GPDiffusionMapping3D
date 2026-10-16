@@ -48,14 +48,14 @@ def analyze(
     backend="cpu",
     seed=None,
     dtype="float64",
-    burn_in=0,
-    adaptation="legacy",
+    burn_in=None,
+    adaptation=None,
     annealing_sweeps=None,
     adaptation_sweeps=None,
     diagnostics=False,
     initial_inducing=None,
-    proposal="relative",
-    block_size=16,
+    proposal=None,
+    block_size=8,
     **kwargs,
 ):
     """Run sequential Metropolis-within-Gibbs inference.
@@ -65,28 +65,32 @@ def analyze(
     data : types.SimpleNamespace
         Prepared trajectory observations.
     nIter : int, optional
-        Production sweeps, preceded by twice as many annealing sweeps.
+        Production sweeps. Multiple chains and convergence diagnostics remain
+        necessary; the 3D validation used 20000 sweeps per chain.
     backend : {"cpu", "gpu"}, optional
         Explicit numerical backend. A requested GPU must be available.
     seed : int or None, optional
         Sampler random seed.
     dtype : {"float64", "float32"}, optional
         Numerical precision. Only float64 passed scientific validation.
-    burn_in : int, optional
+    burn_in : int or None, optional
         Additional discarded temperature-one sweeps after adaptation, with
-        fixed proposal widths. The default is zero extra sweeps.
-    adaptation : {"legacy", "diminishing"}, optional
-        Legacy cumulative adaptation or experimental warmup log-width tuning.
+        fixed proposal widths. Defaults to 1000 for blocked proposals, else zero.
+    adaptation : {"legacy", "diminishing"} or None, optional
+        Defaults to legacy cumulative adaptation for relative proposals and
+        recent-window log-width tuning for additive or blocked proposals.
     annealing_sweeps, adaptation_sweeps : int or None, optional
-        Explicit warmup lengths. Defaults are twice nIter and 200 for legacy,
-        or twice nIter and 4000 for diminishing adaptation.
+        Explicit warmup lengths. Blocked proposals default to 2000 annealing
+        sweeps; other proposals use twice nIter. Adaptation defaults to 200
+        sweeps for legacy tuning or 4000 for diminishing tuning.
     diagnostics : bool, optional
         Record warmup widths, rejections and accepted coefficient displacements.
     initial_inducing : numpy.ndarray or None, optional
         Positive initial inducing field for independent-chain investigation.
-    proposal : {"relative", "additive", "blocked"}, optional
+    proposal : {"relative", "additive", "blocked"} or None, optional
         Legacy state-dependent or symmetric additive inverse-coordinate moves.
         The blocked option uses fixed prior-whitened Fisher directions.
+        Defaults to blocked for 3D and the original relative proposal for 2D.
     block_size : int, optional
         Number of coordinates in a sequential symmetric block proposal.
     **kwargs
@@ -102,6 +106,12 @@ def analyze(
         Unnormalized log posterior for each production sample.
     """
 
+    if proposal is None:
+        proposal = "blocked" if getattr(data, "dimensions", 2) == 3 else "relative"
+    if adaptation is None:
+        adaptation = "legacy" if proposal == "relative" else "diminishing"
+    if burn_in is None:
+        burn_in = 1000 if proposal == "blocked" else 0
     if not isinstance(burn_in, (int, np.integer)) or burn_in < 0:
         raise ValueError("burn_in must be a nonnegative integer")
     if adaptation not in ("legacy", "diminishing"):
@@ -114,7 +124,11 @@ def analyze(
         raise ValueError(
             "Blocked proposals require validated float64 precision"
         )
-    burnIter = 2 * nIter if annealing_sweeps is None else annealing_sweeps
+    burnIter = (
+        (2000 if proposal == "blocked" else 2 * nIter)
+        if annealing_sweeps is None
+        else annealing_sweeps
+    )
     stabilizeIter = (
         (200 if adaptation == "legacy" else 4000)
         if adaptation_sweeps is None
