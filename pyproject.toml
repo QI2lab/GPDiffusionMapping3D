@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpdiffusionmapping"
+version = "0.1.0"
+description = "Gaussian-process diffusion mapping from particle trajectories"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = [
+    "numpy==2.0.2",
+    "numba==0.60.0",
+    "scipy==1.14.1",
+    "matplotlib==3.10.8",
+    "typer>=0.15",
+    "pandas>=2.2",
+    "pyarrow>=19",
+    "tifffile>=2024.9.20",
+]
+
+[project.scripts]
+gpdiffusion-map = "gpdiffusionmapping.cli:app"
+
+[project.urls]
+Repository = "https://github.com/dpshepherd/GPDiffusionMapping"
+Issues = "https://github.com/dpshepherd/GPDiffusionMapping/issues"
+"Original Repository" = "https://github.com/LabPresse/GPDiffusionMapping"
+Paper = "https://doi.org/10.1016/j.bpr.2024.100194"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.6"]
+
+[tool.uv]
+default-groups = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["gpdiffusionmapping*"]
+namespaces = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests/cpu"]
+filterwarnings = [
+    "error::DeprecationWarning",
+    "error::PendingDeprecationWarning",
+]
+markers = [
+    "unit: independent mathematical identities",
+    "integration: independently simulated physical behavior and inference",
+]

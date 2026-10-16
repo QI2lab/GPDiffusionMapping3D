@@ -1,46 +1,127 @@
 # GPDiffusionMapping
 
-This is the repository for our Diffusion Mapping project from trajectory data, BioArXiV link. For ease of use, it is organized so that users only need to interact with the main.py file. A synthetic dataset is provided in the /data directory under /example that correlates to a flat Diffusion Map at 0.05 $\frac{\mu m^2}{s}$, where the data set has ~5000 localizations. The experimental data associated with our paper, https://www.biorxiv.org/content/10.1101/2024.02.27.582378v1, is also provided in the /data directory under /experimental.
+## Introduction
+
+Infer spatial diffusion maps from linked particle trajectories using Gaussian
+processes. This project extends the method described in the
+[DiffMAP-GP: Continuous 2D diffusion maps from particle trajectories without data binning using Gaussian processes](https://doi.org/10.1016/j.bpr.2024.100194)
+by Kumar et al., implemented in
+[LabPresse/GPDiffusionMapping](https://github.com/LabPresse/GPDiffusionMapping).
+Example and experimental datasets are in `data/`.
+
+Original software: Copyright (c) 2024 Pressé Lab, under the [MIT license](LICENSE).
+See [NOTICE](NOTICE) for attribution and dataset provenance.
 
 ## Installation
 
-### Download
+Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
-To download the package, simply clone this repository using `git` or click the green <>Code button above and select the download option. This will download the package as a Zip file to your computer. Unzip the file and open the directory in your favorite python editor.
-
-#### Setup environment
-
-In order to run the code you will need to set up a virtual environment and install the required packages. This can be done by running the following commands in the terminal or command prompt.
-
-##### Mac/Linux Users
-
-In the terminal, `cd` to the project directory and run the follwing:
 ```bash
-python -m venv .env
-source .env/bin/activate
-pip install -r requirements.txt
+git clone https://github.com/dpshepherd/GPDiffusionMapping.git
+cd GPDiffusionMapping
+uv sync
 ```
 
-##### Windows Users
-
-In the command prompt, `cd` to the project directory and run the follwing:
-```bash
-python -m venv .env
-.env\Scripts\activate
-pip install -r requirements.txt
-```
+Inference uses CPU float64 with NumPy/Numba; no GPU installation is needed.
 
 ## Usage
 
-To run the code, simply run the main.py file in your favorite python editor. Change `dataPath` to the path of your data file.
+Provide linked tracks as CSV or Parquet. Default columns are `particle_id`,
+`x`, `y`, and `timestamp`, plus `z` for 3D. Positions are in microns (µm),
+timestamps in seconds, and diffusion coefficients in µm²/s. Each cell is
+inferred separately with its own GP grid.
 
-The data file should be a csv file with 3 columns: `particle #`, `xPos`, and `yPos`, where `particle #` is the particle number, `xPos` is the x position of the particle, and `yPos` is the y position of the particle. Position is measured in nanometers. Time steps are assumed to be taken at 30 Hz.
+- **Directory:** each CSV/Parquet file directly inside it represents one cell.
+  Name files `cell_0000.parquet`, `cell_0001.parquet`, etc., or `cell_0000.csv`,
+  `cell_0001.csv`, etc. The integer after the underscore identifies the cell.
+- **Single file:** an integer `cell_id` column is required; the CLI automatically
+  groups observations by cell before linking within-particle displacements.
+  Cell IDs are nonnegative 64-bit integers and may start at zero.
 
-The code will output an image and save it to the `output/` directory.
+Example single-file **2D** input (`cells_2d.csv`):
 
-The code is set to run with default hyperparameters, but the user can change the hyperparameters as needed by including them as keyword arguments in the `analyze` function. A dictionary of the hyperparameters can be found in `model.py`.
+```csv
+cell_id,particle_id,x,y,timestamp
+0,1,0.10,0.20,0.00
+0,1,0.12,0.23,0.01
+1,1,1.10,1.20,0.00
+1,1,1.13,1.22,0.01
+```
 
-## Assumed Units
+Example single-file **3D** input (`cells_3d.csv`):
 
-* Time: Seconds
-* Length: Nanometers
+```csv
+cell_id,particle_id,z,y,x,timestamp
+0,1,0.30,0.20,0.10,0.00
+0,1,0.32,0.23,0.12,0.01
+1,1,1.30,1.20,1.10,0.00
+1,1,1.33,1.22,1.13,0.01
+```
+
+These illustrate the columns; inference needs many more observations.
+Parquet inputs use the same columns.
+
+```bash
+# 2D: one file per cell
+uv run --no-sync gpdiffusion-map cells_2d/ --dimensions 2 --output-dir maps_2d
+
+# 3D: all cells in one CSV (Parquet also works)
+uv run --no-sync gpdiffusion-map cells_3d.csv --dimensions 3 --output-dir maps_3d
+
+# 2D: all cells in one CSV
+uv run --no-sync gpdiffusion-map cells_2d.csv --dimensions 2 --output-dir maps_2d
+
+# Legacy 2D files without timestamps: provide seconds per frame
+uv run --no-sync gpdiffusion-map legacy_cells/ --dimensions 2 \
+  --x-col xPos --y-col yPos --delta-t 0.03333333333333333
+```
+
+Cells are processed in integer order. Each gets a zero-padded output folder
+(for example, `cell_0000/`) containing:
+
+- `cell_0000.parquet`: map coordinates (`x_um`, `y_um`, plus `z_um` for 3D),
+  integer `cell_id`, and `diffusion_um2_s`. Use `--output-format csv` for CSV.
+- `cell_0000.ome.tiff`: float32 diffusion map in YX (2D) or ZYX (3D) order,
+  with physical pixel sizes and plane positions in µm. Pixel values are µm²/s.
+- Sampling arrays, a preview figure, metadata and sampling log.
+
+Padding expands beyond four digits when needed so filenames remain ordered.
+Particle IDs may repeat across cells. Directory inputs can mix CSV and Parquet;
+any `cell_id` column must agree with the filename.
+
+Use `uv run --no-sync gpdiffusion-map --help` for column overrides, including
+`--cell-col` and `--particle-col`, and unit conversion. Existing files using
+`particle #` can use `--particle-col 'particle #'`.
+For input positions in nanometers, use `--scale 0.001` to convert to microns.
+Saved arrays and figures both use µm and µm²/s; array keys use the `um` suffix.
+
+## Changes from Original
+
+- Timestamped 3D inference alongside the original 2D method.
+- Micron-based inputs, numerical outputs and figures.
+- Improved 3D sampling with blocked Metropolis proposals and longer warmup.
+- Optimized CPU calculations and modern dependency management with uv.
+- A command-line interface for CSV and Parquet input.
+- Scientific unit/integration tests and GitHub Actions CI.
+
+## Contributing
+
+```bash
+uv sync --group dev
+uv run --no-sync python -m pytest tests/cpu --strict-markers -q \
+  -k 'not test_independent_3d_chains_converge'
+```
+
+Keep changes consistent with the physical model and include scientific checks.
+Preserve the original copyright, license and attribution notices.
+The shorter CI suite runs on PRs and pushes to `main`/`master`. Add
+`run-convergence` to a non-draft PR ready to merge to request full convergence
+checks. See the [documentation](docs/index.md) for full usage instructions.
+
+Build or preview the Markdown documentation with MkDocs Material:
+
+```bash
+uv sync --group docs
+uv run --no-sync mkdocs build --strict
+uv run --no-sync mkdocs serve
+```

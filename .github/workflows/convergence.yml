@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
+name: 3D convergence
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: convergence-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENBLAS_NUM_THREADS: '1'
+  OMP_NUM_THREADS: '1'
+  MPLBACKEND: Agg
+
+jobs:
+  convergence:
+    if: >-
+      github.event.label.name == 'run-convergence' &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.draft == false
+    name: Convergence / ${{ matrix.field }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - field: uniform
+            feature: 'False'
+          - field: smooth
+            feature: 'True'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          cache-suffix: convergence-${{ matrix.field }}
+      - name: Prepare scientific output directory
+        run: mkdir -p validation_artifacts
+      - name: Install CPU environment
+        run: uv sync --group dev --no-editable
+      - name: Check four independent full 3D chains
+        run: >-
+          uv run --no-sync python -m pytest
+          'tests/cpu/test_3d.py::test_independent_3d_chains_converge[${{ matrix.feature }}]'
+          --strict-markers -ra -q --durations=20
+          --junitxml=validation_artifacts/convergence-${{ matrix.field }}.xml
+          --basetemp=validation_artifacts/convergence-${{ matrix.field }}
+      - name: Save convergence evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: convergence-${{ matrix.field }}
+          path: |
+            validation_artifacts/convergence-${{ matrix.field }}.xml
+            validation_artifacts/convergence-${{ matrix.field }}/**/convergence.json
+            validation_artifacts/convergence-${{ matrix.field }}/**/cpu-*.json
+            validation_artifacts/convergence-${{ matrix.field }}/**/cpu-*.log
+          if-no-files-found: ignore
+          retention-days: 7
