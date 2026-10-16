@@ -124,3 +124,15 @@ if __name__ == "__main__":
     result = recovery(args.backend, 41, True, iterations=args.iterations)
     Path(args.output).write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, indent=2))
+
+
+def logged_recovery(backend, seed, data_seed, iterations, directory):
+    """Run one independent local diagnostic chain, retaining its trace and log."""
+    import json
+    directory=Path(directory)
+    with (directory/f'{backend}.log').open('w',buffering=1) as stream:
+        with contextlib.redirect_stdout(stream):
+            result=recovery(backend,seed,True,iterations=iterations,data_seed=data_seed,
+                quiet=False,trace_path=directory/f'{backend}.npz')
+    (directory/f'{backend}.json').write_text(json.dumps(result,indent=2)+'\n')
+    return result

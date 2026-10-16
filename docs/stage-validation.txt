@@ -228,3 +228,18 @@ physical recovery does not override the ratio failure. Updated stage2-results.js
 3D defaults now use the protocol's already validated 5x5x5 inducing grid;
 the existing 2D defaults remain 30x30. This aligns new 3D defaults with its
 predeclared recovery operating point, rather than introducing an untested grid.
+Post-RNG-correction Stage 3: required GPU tests 8 passed in 70.80 s, including
+three actual Metropolis steps checked against an independent scalar Gaussian
+oracle. The unchanged CPU path retains its separately executed 15-test Stage 3
+and 30-test combined 2D/3D results.
+Post-RNG-correction Stage 4 numerical/recovery tests: 8 passed in 275.00 s;
+the chain-mean comparison was separately selected and run (not skipped).
+Independent sampler seeds 41/42 on identical data seed 41 at 1000 production
+iterations still FAILED the unchanged sampling bound. Saved traces show minimum
+estimated ESS CPU 7.387 / GPU 8.092, maximum autocorrelation time ~135.4 / 123.6
+sweeps and maximum split-mean drift .03572 / .03998. This is unresolved slow
+mixing, beyond the corrected host-stream defect. No stage completion is claimed.
+The next fixed comparison uses 5000 production iterations, 10000 annealing and
+200 stabilization sweeps, in two independent local processes. Same data, priors,
+proposal rules, temperatures and original ten-batch Student-t bound; no tolerance
+inflation. Concurrent durations are not performance measurements.

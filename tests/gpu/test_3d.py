@@ -49,12 +49,19 @@ def test_3d_regular_and_fine_simulator(cupy_gpu):
 
 @pytest.mark.integration
 def test_independent_3d_chain_means_with_sampling_uncertainty(cupy_gpu,tmp_path):
-    cpu = recovery("cpu", 41, True, iterations=1000,trace_path=tmp_path/"cpu.npz")
-    gpu = recovery("gpu", 42, True, iterations=1000, data_seed=41,trace_path=tmp_path/"gpu.npz")
+    from concurrent.futures import ProcessPoolExecutor
+    import multiprocessing
+    from scripts.validate_3d import logged_recovery
+    with ProcessPoolExecutor(max_workers=2,mp_context=multiprocessing.get_context("spawn")) as pool:
+        cpu_future=pool.submit(logged_recovery,"cpu",41,41,5000,tmp_path)
+        gpu_future=pool.submit(logged_recovery,"gpu",42,41,5000,tmp_path)
+        cpu,gpu=cpu_future.result(),gpu_future.result()
     difference = abs(np.array(cpu["posterior_mean"]) - gpu["posterior_mean"])
     standard_error = np.sqrt(np.array(cpu["mc_se"])**2 + np.array(gpu["mc_se"])**2)
     # Ten batch means per independent chain; conservative Student-t df=9,
     # 99% family coverage over the 27 predeclared central positions.
     from scipy.stats import t
     bound = t.ppf(1 - .01 / (2 * 27), df=9) * standard_error
+    import json
+    (tmp_path/"comparison.json").write_text(json.dumps({"cpu":cpu,"gpu":gpu,"difference":difference.tolist(),"bound":bound.tolist()},indent=2))
     assert np.all(difference < bound), {"cpu":cpu["sampling"],"gpu":gpu["sampling"],"trace_dir":str(tmp_path),"difference":difference.tolist(),"bound":bound.tolist()}
