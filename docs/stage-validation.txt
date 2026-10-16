@@ -179,3 +179,38 @@ Ordinary ratio error .0001533 and stress error .0442453 exceed 1e-4. Stress
 inverse residual .002007 and field error .0005709 (cond(R)=12501).
 Resident arrays: float64 41,913,000 / float32 20,956,500 bytes. The 3D diagnostic
 uses the full 3D density/ratio with float32 arrays; see stage4-float32-results.json.
+Stage 4 full-suite correctness runs (before additional chain-mean diagnostic):
+CPU: 30 passed in 343.66 s; required GPU: 13 passed in 329.60 s; zero skips.
+These separately invoked suites overlapped in time; their durations are not
+performance benchmarks. All 2D/3D physical recovery cases passed the original
+10% target, including three seeds, irregular observations and fine simulations.
+
+Additional 3D chain-mean diagnostic at 100 production iterations FAILED its
+predeclared 99% family Monte Carlo interval at some evaluation positions.
+Both chains recovered the physical field, but this short-chain comparison did
+not establish agreement within the estimated Monte Carlo error. The bound is
+unchanged: ten batch means, Student-t df=9, 27 positions. Re-running with the
+method's default 1000 production iterations (and original 2*nIter annealing,
+200 stabilization) to obtain adequate sampling. Stage 4 remains incomplete
+until this check and separate sequential performance measurements complete.
+
+Stage 4 diagnosis: the 1000-iteration chain-mean comparison also failed the
+unchanged Monte Carlo interval. Five controlled full-sweep checks agreed to
+2.22e-16 in field values and <=1.60e-12 in posterior, ruling out that numerical
+sweep discrepancy on those prescribed inputs. A fixed 5000-iteration diagnostic
+was started, then intentionally interrupted after discovering a host RNG defect.
+No result or pass is claimed for that interrupted run.
+
+Confirmed GPU control-flow correction: the GPU used Numba's indexShuffler RNG
+and NumPy's proposal/acceptance RNG, both initialized to the SAME seed. These
+are duplicate MT streams rather than independent draws; future/past random
+values could be reused across sampler decisions. GPU now uses the original
+indexShuffler Python implementation with the SAME NumPy stream as proposal and
+acceptance draws. This preserves the original shuffling algorithm and avoids
+stream duplication. Invalid-field rejection also skips acceptance draws just as
+on CPU. No acceptance decisions are forced to match and no bound was changed.
+The actual paired-sweep check now needs no artificial RNG-offset consumption.
+Independent-chain comparison uses sampler seeds 41/42 with identical simulated
+data seed 41; this separates dataset randomness from independent chain seeds.
+Earlier GPU sampling/timing evidence is superseded pending the reruns below;
+deterministic float32 accuracy rejection and mathematical bounds are unchanged.

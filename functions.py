@@ -510,7 +510,9 @@ def diffusionPointSampler_gpu(variables):
     mean_host = cp.asnumpy(v.priorMean)
     proposal_host = cp.asnumpy(v.cProposal)
     accepted = np.zeros(v.nIndu)
-    for k in indexShuffler(v.nIndu):
+    # Use the same host RNG for order and proposal draws. Two identically
+    # seeded NumPy/Numba states would reuse random values across decisions.
+    for k in indexShuffler.py_func(v.nIndu):
         old_alpha = alpha[k]
         scale = np.random.exponential(v.epsilon[k])
         change = scale * old_alpha * np.random.randn()
@@ -521,6 +523,8 @@ def diffusionPointSampler_gpu(variables):
         if np.all(inducing > 0):
             delta = float(gpu_likelihood_difference(v.dData, v.cInduData[k], change, v.a, v.dimensions))
             # Exact quadratic-prior difference for a column of R, R^-1 R_k=e_k.
+            if np.isneginf(delta):
+                continue  # Match CPU positivity rejection before an acceptance draw.
             delta += (-change * (inducing_host - mean_host)[k]
                       -.5 * change**2 * proposal_host[k, k])
             correction = proposal_log_ratio(change, scale, old_alpha, new_alpha)

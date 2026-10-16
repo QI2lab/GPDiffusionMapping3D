@@ -62,21 +62,40 @@ def physics(seed=41,irregular=True):
     return dict(msd_per_time=float(np.mean(np.sum(steps**2,axis=1)/tau)),expected=6.,mle=float(mle))
 
 
-def recovery(backend='cpu',seed=41,feature=False,irregular=True,substeps=1):
+def recovery(backend='cpu',seed=41,feature=False,irregular=True,substeps=1,iterations=100,quiet=True,trace_path=None,data_seed=None):
     """Recover a predeclared central cube with the original sampler schedule."""
-    data=prepared(seed=seed,feature=feature,irregular=irregular,substeps=substeps)
+    data=prepared(seed=seed if data_seed is None else data_seed,feature=feature,irregular=irregular,substeps=substeps)
     if backend=='gpu':
         import cupy as cp
         cp.cuda.Device().synchronize()
     start=time.perf_counter()
-    with contextlib.redirect_stdout(io.StringIO()):
-        v,samples,p=model.analyze(data,nIter=100,backend=backend,seed=seed,nInduX=5,nInduY=5,nInduZ=5,
+    with (contextlib.redirect_stdout(io.StringIO()) if quiet else contextlib.nullcontext()):
+        v,samples,p=model.analyze(data,nIter=iterations,backend=backend,seed=seed,nInduX=5,nInduY=5,nInduZ=5,
             nFineX=5,nFineY=5,nFineZ=5,covLambda=.5,covL=1.5)
     if backend=='gpu': cp.cuda.Device().synchronize()
     points=np.array([(z,y,x) for z in (-1.,0.,1.) for y in (-1.,0.,1.) for x in (-1.,0.,1.)])
     weights=f.covMat(points,v.induCoordinates,v.covLambda,v.covL)@v.cInduInduInv
     estimate=weights@v.dIndu
+    projected = samples @ weights.T
+    if trace_path is not None:
+        np.savez_compressed(trace_path, projected=projected, samples=samples, posterior=p)
+    batches = np.array_split(projected, 10)
+    mc_se = np.std([batch.mean(axis=0) for batch in batches], axis=0, ddof=1) / np.sqrt(10)
     error=float(np.sqrt(np.mean(((estimate-truth(points,feature))/truth(points,feature))**2)))
-    return dict(backend=backend,seed=seed,feature=feature,irregular=irregular,substeps=substeps,
+    return dict(backend=backend,seed=seed,feature=feature,irregular=irregular,substeps=substeps,iterations=iterations,
                 seconds=time.perf_counter()-start,recovery_rms=error,estimate=estimate.tolist(),
+                posterior_mean=projected.mean(axis=0).tolist(),mc_se=mc_se.tolist(),
                 gpu_pool_bytes=cp.get_default_memory_pool().total_bytes() if backend=='gpu' else 0)
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--iterations", type=int, default=100)
+    args = parser.parse_args()
+    result = recovery(args.backend, 41, True, iterations=args.iterations)
+    Path(args.output).write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps(result, indent=2))

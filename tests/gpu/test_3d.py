@@ -45,3 +45,16 @@ def test_3d_physical_field_recovery(cupy_gpu,feature,seed):
 def test_3d_regular_and_fine_simulator(cupy_gpu):
     assert recovery('gpu',41,False,irregular=False)['recovery_rms']<.1
     assert recovery('gpu',41,True,substeps=10)['recovery_rms']<.1
+
+
+@pytest.mark.integration
+def test_independent_3d_chain_means_with_sampling_uncertainty(cupy_gpu):
+    cpu = recovery("cpu", 41, True, iterations=1000)
+    gpu = recovery("gpu", 42, True, iterations=1000, data_seed=41)
+    difference = abs(np.array(cpu["posterior_mean"]) - gpu["posterior_mean"])
+    standard_error = np.sqrt(np.array(cpu["mc_se"])**2 + np.array(gpu["mc_se"])**2)
+    # Ten batch means per independent chain; conservative Student-t df=9,
+    # 99% family coverage over the 27 predeclared central positions.
+    from scipy.stats import t
+    bound = t.ppf(1 - .01 / (2 * 27), df=9) * standard_error
+    assert np.all(difference < bound)
