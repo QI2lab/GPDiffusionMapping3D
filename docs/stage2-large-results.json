@@ -1,0 +1,82 @@
+[
+  {
+    "count": 100000,
+    "stress": false,
+    "full_likelihood_dtype": "float64",
+    "dtype": "float64",
+    "condition": 255.66858366962433,
+    "array_dtypes": [
+      "float64"
+    ],
+    "live_array_bytes": 62453568,
+    "initialization_s": 0.08717326633632183,
+    "inverse_residual": 6.049127661076908e-14,
+    "field_max_error": 3.574918139293004e-14,
+    "minimum_diffusion": 0.9433521127288262,
+    "full_likelihood_error": 0.0,
+    "ratio_error_cpu": 2.0750068330244176e-13,
+    "ratio_error_gpu64": 0.0,
+    "prior_delta_error": 3.864096542738338e-16
+  },
+  {
+    "count": 100000,
+    "stress": false,
+    "full_likelihood_dtype": "float32",
+    "dtype": "float32",
+    "condition": 255.66858366962433,
+    "array_dtypes": [
+      "float32"
+    ],
+    "live_array_bytes": 31226784,
+    "initialization_s": 0.24276619963347912,
+    "inverse_residual": 2.105452585965395e-05,
+    "field_max_error": 2.1623993211594694e-06,
+    "minimum_diffusion": 0.9433518648147583,
+    "full_likelihood_error": 0.013802628498524427,
+    "ratio_error_cpu": 0.0004924263513788052,
+    "ratio_error_gpu64": 0.0004924263515677652,
+    "prior_delta_error": 1.8785962506199e-09
+  },
+  {
+    "count": 100000,
+    "stress": true,
+    "full_likelihood_dtype": "float64",
+    "dtype": "float64",
+    "condition": 3601.0003317031733,
+    "array_dtypes": [
+      "float64"
+    ],
+    "live_array_bytes": 62453568,
+    "initialization_s": 0.08599073812365532,
+    "inverse_residual": 6.798533022053552e-13,
+    "field_max_error": 3.3295588508508445e-13,
+    "minimum_diffusion": 0.9953211807467308,
+    "full_likelihood_error": 0.0,
+    "ratio_error_cpu": 2.2647661523933493e-11,
+    "ratio_error_gpu64": 0.0,
+    "prior_delta_error": 2.2197006602567293e-16
+  },
+  {
+    "count": 100000,
+    "stress": true,
+    "full_likelihood_dtype": "float32",
+    "dtype": "float32",
+    "condition": 3601.0003317031733,
+    "array_dtypes": [
+      "float32"
+    ],
+    "live_array_bytes": 31226784,
+    "initialization_s": 0.0837134700268507,
+    "inverse_residual": 0.0003836636897176504,
+    "field_max_error": 0.00012420537324175918,
+    "minimum_diffusion": 0.9952710866928101,
+    "full_likelihood_error": 0.01274198803002946,
+    "ratio_error_cpu": 0.009988545609629806,
+    "ratio_error_gpu64": 0.009988545586927522,
+    "prior_delta_error": 2.6874893832297105e-09
+  },
+  {
+    "decision": "reject float32; retain float64",
+    "ratio_budget": 0.0001
+  }
+]

@@ -130,3 +130,19 @@ but recovery alone does not repair inaccurate proposal ratios. GPU float32
 runs took ~4.15-4.43 s vs ~6.0-6.98 s float64 for 10k transitions. Details in
 stage2-results.json and representative 100k checks in stage2-large-results.json.
 No jitter changes, new floors, mixed precision or favorable seed selection.
+Representative Stage 2 confirmation (100k transitions, all-float32 density):
+resident numerical arrays 62,453,568 bytes float64 / 31,226,784 bytes float32;
+ordinary-case ratio error .0004924; stressed ratio error .00998855. Both exceed
+1e-4. Float32 full-density outputs are explicitly float32 in the recorded run.
+The rejection applies even without the length-scale stress at this data size.
+
+Stage 3 scientific suite
+CPU command: uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+Result: 15 passed, 34.51 s, zero skips. Explicit CPU backend throughout.
+Independent multivariate Gaussian and GP density oracles; scalar Metropolis
+steps reconstruct target/proposal probabilities and RNG inputs independently;
+component variance, mean, MSD and analytic MLE predictions use Brownian physics.
+Recovery repeats predeclared seeds/region/target and the finer simulator.
+GPU command: GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu
+  --strict-markers -q
+Required GPU results are recorded after completion; no optional skips count.
