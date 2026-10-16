@@ -146,3 +146,6 @@ Recovery repeats predeclared seeds/region/target and the finer simulator.
 GPU command: GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu
   --strict-markers -q
 Required GPU results are recorded after completion; no optional skips count.
+Stage 3 gate PASSED: required GPU suite 5 passed, 68.34 s, zero skips, on the
+RTX 3090. CPU suite 15 passed independently. No formal float32 correctness
+suite was added because float32 was rejected. No 3D code preceded these gates.
