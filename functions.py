@@ -78,7 +78,7 @@ def covMat(coordinates1, coordinates2, covLambda, covL):
     return C
 
 # Initialize sampler parameters
-def initialization(variables, data):
+def initialization(variables, data, backend="cpu"):
     """
     Initialize parameters for the sampler.
 
@@ -89,6 +89,14 @@ def initialization(variables, data):
     Returns:
     - Initialized variables.
     """
+
+    if backend not in ("cpu", "gpu"):
+        raise ValueError("backend must be cpu or gpu")
+    xp = np
+    if backend == "gpu":
+        import cupy as cp
+        cp.cuda.Device().use()
+        xp = cp
 
     # Declare variables as instance of SimpleNamespace
     variables = SimpleNamespace(**variables)
@@ -112,17 +120,10 @@ def initialization(variables, data):
     covL = variables.covL
     covLambda = variables.covLambda
 
-    # Points of trajectory where learning is possible
-    dataCoordinates = np.empty((0, 2))
-    for i in range(nData - 1):
-        if (trajectoriesIndex[i] == trajectoriesIndex[i + 1]):
-            dataCoordinates = np.vstack((dataCoordinates, trajectories[i]))
-
-    # Points of trajectory that are "sampled"
-    sampleCoordinates = np.empty((0, 2))
-    for i in range(1, nData):
-        if (trajectoriesIndex[i] == trajectoriesIndex[i - 1]):
-            sampleCoordinates = np.vstack((sampleCoordinates, trajectories[i]))
+    # Identical consecutive within-track pairs, without quadratic vstack copies.
+    paired = trajectoriesIndex[:-1] == trajectoriesIndex[1:]
+    dataCoordinates = np.ascontiguousarray(trajectories[:-1][paired])
+    sampleCoordinates = np.ascontiguousarray(trajectories[1:][paired])
 
     # Find MLE assuming flat map
     diff = sampleCoordinates - dataCoordinates
@@ -157,18 +158,28 @@ def initialization(variables, data):
     dIndu = mle * np.ones(nIndu)
     priorMean = dIndu.copy()
 
+    # Transfer numerical arrays once; retain proposal work on the device.
+    if backend == "gpu":
+        dataCoordinates = xp.asarray(dataCoordinates)
+        sampleCoordinates = xp.asarray(sampleCoordinates)
+        induCoordinates = xp.asarray(induCoordinates)
+        fineCoordinates = xp.asarray(fineCoordinates)
+        dIndu = xp.asarray(dIndu)
+        priorMean = xp.asarray(priorMean)
+    kernel = covMat if backend == "cpu" else covMat_gpu
+
     # Determine Covariance matrices
-    cInduIndu = covMat(induCoordinates, induCoordinates, covLambda, covL)
-    cInduData = covMat(induCoordinates, dataCoordinates, covLambda, covL)
-    cInduFine = covMat(induCoordinates, fineCoordinates, covLambda, covL)
-    cProposal = cInduIndu + epsilon * np.mean(cInduIndu) * np.eye(nIndu)
-    cInduInduInv = np.linalg.inv(cProposal)
+    cInduIndu = kernel(induCoordinates, induCoordinates, covLambda, covL)
+    cInduData = kernel(induCoordinates, dataCoordinates, covLambda, covL)
+    cInduFine = kernel(induCoordinates, fineCoordinates, covLambda, covL)
+    cProposal = cInduIndu + epsilon * xp.mean(cInduIndu) * xp.eye(nIndu)
+    cInduInduInv = xp.linalg.inv(cProposal)
     cDataIndu = cInduData.T @ cInduInduInv
-    cInduInduChol = np.linalg.cholesky(cInduIndu + epsilon * np.mean(cInduIndu) * np.eye(nIndu))
+    cInduInduChol = xp.linalg.cholesky(cProposal)
 
     # Determine the mle at each individual data point
     diff = sampleCoordinates - dataCoordinates
-    dMleData = np.sum(diff * diff, axis=1) / (4 * deltaT)
+    dMleData = xp.sum(diff * diff, axis=1) / (4 * deltaT)
 
     @nb.jit(cache=True, nopython=True)
     def compute_vector(induCoordinates, dataCoordinates, covLambda, covL, dMleData, dIndu, nIndu, cDataIndu, smoother=1):
@@ -203,15 +214,20 @@ def initialization(variables, data):
 
     P = -np.inf  # Set to negative infinity initially or any other large negative value to ensure the loop runs at least once
 
-    # Compute the initialization based on the value found for smoother
-    dIndu, dData = compute_vector(induCoordinates, dataCoordinates, covLambda, covL, dMleData, dIndu, nIndu,
-                                   cDataIndu)
-    P = calculate_log_posterior(dataCoordinates, sampleCoordinates, dData, deltaT, dIndu, priorMean, cInduInduInv)
-
-    # Make sure interpolated estimate is positive
-    if np.any(dData < 0):
-        print("Increase the length scale, the # of inducing points, or set the initial Sample to a flat plane")
-        exit()
+    if backend == "cpu":
+        dIndu, dData = compute_vector(
+            induCoordinates, dataCoordinates, covLambda, covL, dMleData,
+            dIndu, nIndu, cDataIndu)
+    else:
+        dIndu = (cInduData @ dMleData) / xp.sum(cInduData, axis=1)
+        dData = cDataIndu @ dIndu
+    if bool(xp.any(dData <= 0)) or bool(xp.any(dIndu <= 0)):
+        raise ValueError("Initialization requires positive inducing and interpolated diffusion")
+    a = xp.sum(diff * diff, axis=1) / (4 * deltaT)
+    P = float(log_likelihood(dData, a, deltaT, 2, xp)
+              + log_prior(dIndu, priorMean, cInduInduInv))
+    variables.backend = backend
+    variables.a = a
 
     print(f"The initial probability is {P} and there are {nIndu} inducing points.")
 
@@ -342,6 +358,9 @@ def diffusionPointSampler(variables, data):
     - Sampled variables and acceptance count.
     """
 
+    if getattr(variables, "backend", "cpu") == "gpu":
+        return diffusionPointSampler_gpu(variables)
+
     # Necessary variables
     cInduIndu = variables.cProposal
     cInduData = variables.cInduData
@@ -374,3 +393,102 @@ def diffusionPointSampler(variables, data):
     print(f"{accRate:.2f}%", end=" ")
 
     return variables, accCount
+
+
+
+def covMat_gpu(coordinates1, coordinates2, covLambda, covL):
+    """Evaluate the existing spatial RBF on CUDA using CuPy built-ins."""
+    import cupy as cp
+
+    squared = cp.zeros((len(coordinates1), len(coordinates2)), dtype=cp.float64)
+    for axis in range(2):
+        squared += (coordinates1[:, axis, None] - coordinates2[None, :, axis])**2
+    return covLambda**2 * cp.exp(-.5 * squared / covL**2)
+
+
+def log_likelihood(diffusion, a, delta_t, dimensions=2, xp=np):
+    """Evaluate the full Gaussian transition density, including constants."""
+    if bool(xp.any(diffusion <= 0)):
+        return -xp.inf
+    return -xp.sum(dimensions / 2 * xp.log(diffusion) + a / diffusion
+                   + dimensions / 2 * xp.log(4 * xp.pi * delta_t))
+
+
+def log_prior(diffusion, mean, inverse):
+    """Evaluate the original unnormalized direct GP prior."""
+    difference = diffusion - mean
+    return -.5 * (difference @ (inverse @ difference))
+
+
+def likelihood_difference(old, new, a, dimensions=2, xp=np):
+    """Evaluate a proposal ratio directly without subtracting total densities."""
+    if bool(xp.any(new <= 0)):
+        return -xp.inf
+    return xp.sum(-dimensions / 2 * xp.log(new / old)
+                  - a * (1 / new - 1 / old))
+
+
+def proposal_log_ratio(change, scale, old, new):
+    """Return the original conditional proposal-density correction."""
+    if old == 0 or new == 0:
+        return -np.inf
+    return float(logNormpdf(change, scale * new)
+                 - logNormpdf(change, scale * old))
+
+
+_proposal_reduction = None
+
+
+def gpu_likelihood_difference(old, column, change, a):
+    """Fuse the measured proposal likelihood and positivity reduction."""
+    import cupy as cp
+
+    global _proposal_reduction
+    if _proposal_reduction is None:
+        _proposal_reduction = cp.ReductionKernel(
+            "float64 old, float64 column, float64 change, float64 a",
+            "float64 result",
+            "old + column * change > 0 ? "
+            "-log((old + column * change) / old) "
+            "-a * (1.0 / (old + column * change) - 1.0 / old) : -(1.0/0.0)",
+            "a + b", "result = a", "0", "gpd_proposal_float64")
+    return _proposal_reduction(old, column, change, a)
+
+
+def diffusionPointSampler_gpu(variables):
+    """Sequential Metropolis proposals with resident CuPy numerical arrays."""
+    import cupy as cp
+
+    v = variables
+    alpha = cp.asnumpy(v.cInduInduInv @ v.dIndu)
+    inducing_host = cp.asnumpy(v.dIndu)
+    mean_host = cp.asnumpy(v.priorMean)
+    proposal_host = cp.asnumpy(v.cProposal)
+    accepted = np.zeros(v.nIndu)
+    for k in indexShuffler(v.nIndu):
+        old_alpha = alpha[k]
+        scale = np.random.exponential(v.epsilon[k])
+        change = scale * old_alpha * np.random.randn()
+        new_alpha = old_alpha + change
+        inducing = inducing_host + proposal_host[:, k] * change
+        if np.all(inducing > 0):
+            delta = float(gpu_likelihood_difference(v.dData, v.cInduData[k], change, v.a))
+            # Exact quadratic-prior difference for a column of R, R^-1 R_k=e_k.
+            delta += (-change * (inducing_host - mean_host)[k]
+                      -.5 * change**2 * proposal_host[k, k])
+            correction = proposal_log_ratio(change, scale, old_alpha, new_alpha)
+            if delta / v.temperature + correction > np.log(np.random.rand()):
+                accepted[k] = 1
+                v.dIndu += v.cProposal[:, k] * change
+                v.dData += v.cInduData[k] * change
+                inducing_host = inducing
+                v.P += delta
+                alpha[k] = new_alpha
+    print(f"{100 * accepted.mean():.2f}%", end=" ")
+    return v, accepted
+
+
+@nb.njit(cache=True)
+def seed_sampler(seed):
+    """Set the CPU sampler RNG for independently seeded inference runs."""
+    np.random.seed(seed)

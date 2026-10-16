@@ -44,7 +44,7 @@ PARAMETERS = {
 }
 
 # THIS FUNCTION RUNS THE GIBBS SAMPLER
-def analyze(data, nIter=1000, **kwargs):
+def analyze(data, nIter=1000, backend="cpu", seed=None, **kwargs):
     """
     Run the Gibbs sampler.
 
@@ -65,7 +65,10 @@ def analyze(data, nIter=1000, **kwargs):
     
     # Initialize data and variables and time them
     parameters = {**copy.deepcopy(PARAMETERS), **kwargs}
-    variables = functions.initialization(parameters, data)
+    if seed is not None:
+        np.random.seed(seed)
+        functions.seed_sampler(seed)
+    variables = functions.initialization(parameters, data, backend=backend)
     endTime = time.time()
 
     # Progress Marker
@@ -140,7 +143,8 @@ def analyze(data, nIter=1000, **kwargs):
         accVect += accCount
 
         # Save the sample
-        dVect[i] = variables.dIndu
+        dVect[i] = (variables.dIndu.get() if backend == "gpu"
+                    else variables.dIndu)
         pVect[i] = variables.P
         if variables.P >= map_variables.P:
             map_variables = copy.deepcopy(variables)
@@ -151,4 +155,10 @@ def analyze(data, nIter=1000, **kwargs):
         
     print(str(nIter) + " iterations in " + str(endTime-startTime) + " seconds." )
 
+    if backend == "gpu":
+        import cupy as cp
+        cp.cuda.Device().synchronize()
+        for key, value in vars(map_variables).items():
+            if isinstance(value, cp.ndarray):
+                setattr(map_variables, key, cp.asnumpy(value))
     return map_variables, dVect, pVect

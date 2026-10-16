@@ -76,3 +76,38 @@ and interpolant are unchanged. Accepted alpha entries are updated explicitly.
 The original reproducer now has discrepancy 4.440892098500626e-16, below its
 unchanged 4.304979730825718e-13 bound. This is an isolated pre-existing defect
 correction, not a numerical tolerance adjustment.
+
+Stage 1 validation protocol and optimization evidence
+Predeclared seeds 41,42,43; 10,000 independent two-localization tracks, dt=.005 s,
+start positions uniform [-3,3]^2 nm, D=1 nm^2/s or
+D(r)=1+.4*exp(-||r||^2/2) nm^2/s, defined on unbounded space. No walls/clipping.
+Evaluate nine positions on [-1,1]^2, predeclared <=10% relative RMS target.
+6x6 inducing grid, covLambda=.5, covL=1.2, unchanged epsilon=.01;
+100 production iterations, original 200 annealing + 200 stabilization sweeps.
+Finer simulator: ten internal steps for each observed interval, same settings.
+Independent-chain comparisons use 99% family Student-t intervals, 2 degrees
+of freedom conservatively, over the nine positions; chains need not match.
+Gaussian physics checks use independent scipy densities, chi-square 99.9%
+intervals for squared normalized increments, and six standard errors for means.
+Numerical tolerance is declared before comparison: 128*eps*cond(R) for dense
+arithmetic and 128*eps*N*max(1,abs(full_density)) for cancellation-sensitive
+comparison with subtraction of independently evaluated full densities.
+
+Built-in CuPy version: 10k-step sweep .07403 s; first smooth-field recovery
+4.57% RMS in 32.51 s. Proposal launch/reduction overhead dominated this case.
+Added one CuPy ReductionKernel for likelihood difference and positivity. GP
+matrices remain CuPy built-ins; proposals remain sequential and CPU-controlled.
+The exact rank-one prior difference is checked against direct recomputation.
+Initialization previously took 31.93 s for 100k steps due to repeated vstack;
+replaced it with identical consecutive-pair masking, not a new trajectory rule.
+No custom GP kernel, fast math, diffusion floor, jitter change, temperature
+change or sampler stopping change was introduced.
+Stage 1 gate PASSED: complete sequential evidence in stage1-results.json.
+Representative 100k transitions: CPU 43.1534 s, GPU 28.4315 s (1.518x),
+including initialization, transfers, warmup/adaptation and production sampling.
+RMS recovery: CPU 1.897%, GPU .952%. GPU retained memory-pool capacity reached
+210,595,840 bytes (allocator/workspace capacity, not solely live model arrays).
+Small 10k cases are slower on GPU; no general or small-data speedup is claimed.
+All predeclared seeds and finer simulator checks passed, without tuning seeds
+or widening the recovery target. CPU/GPU field error <=1.999e-14;
+proposal-ratio error <=3.470e-17, kernel error <=2.776e-17.
