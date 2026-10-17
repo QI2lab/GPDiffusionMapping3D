@@ -1,5 +1,9 @@
 CPU-ONLY SIMPLIFICATION AFTER THE USER'S PERFORMANCE REVIEW
 
+Subsequent CPU proposal optimization is documented in cpu-optimization.txt.
+The current optimized suite passes 56 tests; the 48-test results below record
+the successful CPU-only removal stage before that optimization.
+
 Decision
 The user authorized removing GPU code unless a clear acceleration path justified
 its complexity. Use the validated NumPy/Numba CPU float64 implementation.

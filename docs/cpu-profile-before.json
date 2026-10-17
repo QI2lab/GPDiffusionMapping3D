@@ -1,0 +1,971 @@
+{
+  "python": "3.12.13 (main, Jun 11 2026, 04:03:26) [Clang 22.1.3 ]",
+  "platform": "Linux-5.15.0-181-generic-x86_64-with-glibc2.35",
+  "thread_environment": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": null
+  },
+  "records": [
+    {
+      "case": "2d",
+      "result": {
+        "count": 100000,
+        "backend": "cpu",
+        "seed": 41,
+        "feature": true,
+        "substeps": 1,
+        "iterations": 100,
+        "seconds": 54.65300293266773,
+        "recovery_rms": 0.018966307194403294,
+        "mc_error": 0.004639404935349462,
+        "estimate": [
+          1.0992171225130967,
+          1.215508641834835,
+          1.1213507479780342,
+          1.2355553724218435,
+          1.3966326476673891,
+          1.2503463615218893,
+          1.1642751837827274,
+          1.2605285834501774,
+          1.1453961091705462
+        ]
+      },
+      "profile_seconds": 54.67601985099997,
+      "top_cumulative": [
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/profile_cpu.py",
+          "line": 31,
+          "function": "<lambda>",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.0009951720000000001,
+          "cumulative_seconds": 54.675989917
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/validate_2d.py",
+          "line": 66,
+          "function": "inference",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.000290328,
+          "cumulative_seconds": 54.674994745000006
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 46,
+          "function": "analyze",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.000240515,
+          "cumulative_seconds": 54.652880838
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 99,
+          "function": "diffusionPointSampler",
+          "primitive_calls": 500,
+          "calls": 500,
+          "self_seconds": 0.03457699,
+          "cumulative_seconds": 53.842578954000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 9,
+          "function": "diffusionPointSamplerSA_nb",
+          "primitive_calls": 500,
+          "calls": 500,
+          "self_seconds": 53.7518364,
+          "cumulative_seconds": 53.757250363000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 265,
+          "function": "run_warmup",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.04224312,
+          "cumulative_seconds": 44.074382976
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 372,
+          "function": "run_production",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.0044256880000000005,
+          "cumulative_seconds": 10.015611143000001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 11,
+          "function": "initialization",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.012832728000000002,
+          "cumulative_seconds": 0.562396136
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 196,
+          "function": "construct_covariances",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.040408559000000004,
+          "cumulative_seconds": 0.231659259
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 219,
+          "function": "smooth_initial_cpu",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.212201561,
+          "cumulative_seconds": 0.21221313900000002
+        },
+        {
+          "file": "/home/dps/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/copy.py",
+          "line": 118,
+          "function": "deepcopy",
+          "primitive_calls": 8,
+          "calls": 529,
+          "self_seconds": 0.001737365,
+          "cumulative_seconds": 0.19516461000000002
+        },
+        {
+          "file": "/home/dps/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/copy.py",
+          "line": 247,
+          "function": "_reconstruct",
+          "primitive_calls": 7,
+          "calls": 7,
+          "self_seconds": 8.634200000000001e-05,
+          "cumulative_seconds": 0.194694729
+        },
+        {
+          "file": "/home/dps/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/copy.py",
+          "line": 217,
+          "function": "_deepcopy_dict",
+          "primitive_calls": 8,
+          "calls": 8,
+          "self_seconds": 0.0005307760000000001,
+          "cumulative_seconds": 0.194674119
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method '__deepcopy__' of 'numpy.ndarray' objects>",
+          "primitive_calls": 119,
+          "calls": 119,
+          "self_seconds": 0.19135220800000002,
+          "cumulative_seconds": 0.19135220800000002
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_math.py",
+          "line": 28,
+          "function": "covMat",
+          "primitive_calls": 4,
+          "calls": 4,
+          "self_seconds": 0.190660722,
+          "cumulative_seconds": 0.190675786
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 146,
+          "function": "spatial_grids",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.000115198,
+          "cumulative_seconds": 0.096795926
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2255,
+          "function": "sum",
+          "primitive_calls": 506,
+          "calls": 506,
+          "self_seconds": 0.004726205000000001,
+          "cumulative_seconds": 0.054309604000000004
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.max>",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.053739906000000004,
+          "cumulative_seconds": 0.053739906000000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 69,
+          "function": "_wrapreduction",
+          "primitive_calls": 507,
+          "calls": 507,
+          "self_seconds": 0.006815621,
+          "cumulative_seconds": 0.048426645000000004
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.min>",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.04227335,
+          "cumulative_seconds": 0.04227335
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'reduce' of 'numpy.ufunc' objects>",
+          "primitive_calls": 520,
+          "calls": 520,
+          "self_seconds": 0.040610882,
+          "cumulative_seconds": 0.040610882
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/validate_2d.py",
+          "line": 32,
+          "function": "simulate",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.010378861000000001,
+          "cumulative_seconds": 0.020882182000000003
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/validate_2d.py",
+          "line": 23,
+          "function": "truth",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.0027073260000000004,
+          "cumulative_seconds": 0.005483206
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numba/core/serialize.py",
+          "line": 30,
+          "function": "_numba_unpickle",
+          "primitive_calls": 1506,
+          "calls": 1506,
+          "self_seconds": 0.005440605,
+          "cumulative_seconds": 0.005440605
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.print>",
+          "primitive_calls": 1505,
+          "calls": 1505,
+          "self_seconds": 0.0051184080000000005,
+          "cumulative_seconds": 0.0051184080000000005
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_math.py",
+          "line": 61,
+          "function": "log_likelihood",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.002804689,
+          "cumulative_seconds": 0.002928491
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/shape_base.py",
+          "line": 371,
+          "function": "stack",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.0027911150000000003,
+          "cumulative_seconds": 0.0027941230000000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_math.py",
+          "line": 7,
+          "function": "expCooling",
+          "primitive_calls": 200,
+          "calls": 200,
+          "self_seconds": 0.002750667,
+          "cumulative_seconds": 0.002750667
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 51,
+          "function": "_wrapfunc",
+          "primitive_calls": 11,
+          "calls": 11,
+          "self_seconds": 2.2571e-05,
+          "cumulative_seconds": 0.0016694560000000002
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 437,
+          "function": "repeat",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 4.692e-06,
+          "cumulative_seconds": 0.0016392890000000002
+        }
+      ],
+      "top_self": [
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 9,
+          "function": "diffusionPointSamplerSA_nb",
+          "primitive_calls": 500,
+          "calls": 500,
+          "self_seconds": 53.7518364,
+          "cumulative_seconds": 53.757250363000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 219,
+          "function": "smooth_initial_cpu",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.212201561,
+          "cumulative_seconds": 0.21221313900000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method '__deepcopy__' of 'numpy.ndarray' objects>",
+          "primitive_calls": 119,
+          "calls": 119,
+          "self_seconds": 0.19135220800000002,
+          "cumulative_seconds": 0.19135220800000002
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_math.py",
+          "line": 28,
+          "function": "covMat",
+          "primitive_calls": 4,
+          "calls": 4,
+          "self_seconds": 0.190660722,
+          "cumulative_seconds": 0.190675786
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.max>",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.053739906000000004,
+          "cumulative_seconds": 0.053739906000000004
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.min>",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.04227335,
+          "cumulative_seconds": 0.04227335
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 265,
+          "function": "run_warmup",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.04224312,
+          "cumulative_seconds": 44.074382976
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'reduce' of 'numpy.ufunc' objects>",
+          "primitive_calls": 520,
+          "calls": 520,
+          "self_seconds": 0.040610882,
+          "cumulative_seconds": 0.040610882
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 196,
+          "function": "construct_covariances",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.040408559000000004,
+          "cumulative_seconds": 0.231659259
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 99,
+          "function": "diffusionPointSampler",
+          "primitive_calls": 500,
+          "calls": 500,
+          "self_seconds": 0.03457699,
+          "cumulative_seconds": 53.842578954000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 11,
+          "function": "initialization",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.012832728000000002,
+          "cumulative_seconds": 0.562396136
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/validate_2d.py",
+          "line": 32,
+          "function": "simulate",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.010378861000000001,
+          "cumulative_seconds": 0.020882182000000003
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 69,
+          "function": "_wrapreduction",
+          "primitive_calls": 507,
+          "calls": 507,
+          "self_seconds": 0.006815621,
+          "cumulative_seconds": 0.048426645000000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numba/core/serialize.py",
+          "line": 30,
+          "function": "_numba_unpickle",
+          "primitive_calls": 1506,
+          "calls": 1506,
+          "self_seconds": 0.005440605,
+          "cumulative_seconds": 0.005440605
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.print>",
+          "primitive_calls": 1505,
+          "calls": 1505,
+          "self_seconds": 0.0051184080000000005,
+          "cumulative_seconds": 0.0051184080000000005
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2255,
+          "function": "sum",
+          "primitive_calls": 506,
+          "calls": 506,
+          "self_seconds": 0.004726205000000001,
+          "cumulative_seconds": 0.054309604000000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 372,
+          "function": "run_production",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.0044256880000000005,
+          "cumulative_seconds": 10.015611143000001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_math.py",
+          "line": 61,
+          "function": "log_likelihood",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.002804689,
+          "cumulative_seconds": 0.002928491
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/shape_base.py",
+          "line": 371,
+          "function": "stack",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.0027911150000000003,
+          "cumulative_seconds": 0.0027941230000000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_math.py",
+          "line": 7,
+          "function": "expCooling",
+          "primitive_calls": 200,
+          "calls": 200,
+          "self_seconds": 0.002750667,
+          "cumulative_seconds": 0.002750667
+        }
+      ],
+      "peak_process_rss_kib": 442776
+    },
+    {
+      "case": "3d",
+      "result": {
+        "backend": "cpu",
+        "dtype": "float64",
+        "production_sweeps": 1000,
+        "warmup_seconds": 0.5315424166619778,
+        "full_inference_seconds": 104.75705146230757,
+        "map_rms": 0.07331566463593933,
+        "full_density_max_error": 6.184563972055912e-10,
+        "device": "CPU",
+        "schedule": {
+          "annealing_sweeps": 2000,
+          "stabilization_sweeps": 4000,
+          "discarded_fixed_width_sweeps": 1000,
+          "production_sweeps": 1000,
+          "proposal": "blocked",
+          "adaptation": "diminishing"
+        },
+        "qualification": "Physical/default and timing check; not a convergence claim for 1000 draws"
+      },
+      "profile_seconds": 107.493457896,
+      "top_cumulative": [
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/profile_cpu.py",
+          "line": 39,
+          "function": "<lambda>",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.003980486,
+          "cumulative_seconds": 107.49342798500001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/validate_sampling_defaults.py",
+          "line": 18,
+          "function": "measure",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.122767605,
+          "cumulative_seconds": 107.48944749900001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 46,
+          "function": "analyze",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.000568197,
+          "cumulative_seconds": 105.28370383400001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 99,
+          "function": "diffusionPointSampler",
+          "primitive_calls": 8003,
+          "calls": 8003,
+          "self_seconds": 0.01157934,
+          "cumulative_seconds": 103.90487417700001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 257,
+          "function": "sample_blocks",
+          "primitive_calls": 8003,
+          "calls": 8003,
+          "self_seconds": 0.186368147,
+          "cumulative_seconds": 103.88583016700001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 190,
+          "function": "sample_blocks_nb",
+          "primitive_calls": 8003,
+          "calls": 8003,
+          "self_seconds": 103.142217098,
+          "cumulative_seconds": 103.18177495100001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 265,
+          "function": "run_warmup",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.12224316700000001,
+          "cumulative_seconds": 90.98432639
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 372,
+          "function": "run_production",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.022037705,
+          "cumulative_seconds": 13.437745848
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/validate_3d.py",
+          "line": 49,
+          "function": "prepared",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.009519965,
+          "cumulative_seconds": 1.9185274870000002
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/data_reader.py",
+          "line": 57,
+          "function": "prepare_tracks",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.8042030680000001,
+          "cumulative_seconds": 1.9049496380000002
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 11,
+          "function": "initialization",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.0032100930000000002,
+          "cumulative_seconds": 0.577587037
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'reduce' of 'numpy.ufunc' objects>",
+          "primitive_calls": 48294,
+          "calls": 48294,
+          "self_seconds": 0.565063321,
+          "cumulative_seconds": 0.565063321
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'mean' of 'numpy.ndarray' objects>",
+          "primitive_calls": 8004,
+          "calls": 8004,
+          "self_seconds": 0.025425321,
+          "cumulative_seconds": 0.48887424100000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/_methods.py",
+          "line": 110,
+          "function": "_mean",
+          "primitive_calls": 8010,
+          "calls": 8010,
+          "self_seconds": 0.084021988,
+          "cumulative_seconds": 0.46398521800000003
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 89,
+          "function": "_wrapreduction_any_all",
+          "primitive_calls": 40264,
+          "calls": 40264,
+          "self_seconds": 0.09691337300000001,
+          "cumulative_seconds": 0.400604923
+        },
+        {
+          "file": "/home/dps/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/copy.py",
+          "line": 118,
+          "function": "deepcopy",
+          "primitive_calls": 16,
+          "calls": 1198,
+          "self_seconds": 0.003006631,
+          "cumulative_seconds": 0.30665858100000004
+        },
+        {
+          "file": "/home/dps/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/copy.py",
+          "line": 247,
+          "function": "_reconstruct",
+          "primitive_calls": 14,
+          "calls": 14,
+          "self_seconds": 0.000178845,
+          "cumulative_seconds": 0.305943839
+        },
+        {
+          "file": "/home/dps/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/copy.py",
+          "line": 217,
+          "function": "_deepcopy_dict",
+          "primitive_calls": 16,
+          "calls": 16,
+          "self_seconds": 0.000922679,
+          "cumulative_seconds": 0.305843388
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 196,
+          "function": "construct_covariances",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.089795684,
+          "cumulative_seconds": 0.30333565300000004
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method '__deepcopy__' of 'numpy.ndarray' objects>",
+          "primitive_calls": 294,
+          "calls": 294,
+          "self_seconds": 0.300017527,
+          "cumulative_seconds": 0.300017527
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 170,
+          "function": "prepare_block_proposals",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.250750079,
+          "cumulative_seconds": 0.283048054
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 1324,
+          "function": "diff",
+          "primitive_calls": 20000,
+          "calls": 20000,
+          "self_seconds": 0.23809407300000002,
+          "cumulative_seconds": 0.26415325700000003
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2513,
+          "function": "all",
+          "primitive_calls": 20133,
+          "calls": 20133,
+          "self_seconds": 0.031798708,
+          "cumulative_seconds": 0.24570145000000002
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 219,
+          "function": "smooth_initial_cpu",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.23124016100000003,
+          "cumulative_seconds": 0.231258348
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 2400,
+          "function": "any",
+          "primitive_calls": 20131,
+          "calls": 20131,
+          "self_seconds": 0.031933064000000004,
+          "cumulative_seconds": 0.218635245
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_math.py",
+          "line": 28,
+          "function": "covMat",
+          "primitive_calls": 6,
+          "calls": 6,
+          "self_seconds": 0.210775821,
+          "cumulative_seconds": 0.21081766100000002
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 1085,
+          "function": "argsort",
+          "primitive_calls": 20000,
+          "calls": 20000,
+          "self_seconds": 0.029243243000000002,
+          "cumulative_seconds": 0.138485153
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/_methods.py",
+          "line": 76,
+          "function": "_count_reduce_items",
+          "primitive_calls": 8010,
+          "calls": 8010,
+          "self_seconds": 0.117965631,
+          "cumulative_seconds": 0.127844325
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 51,
+          "function": "_wrapfunc",
+          "primitive_calls": 20010,
+          "calls": 20010,
+          "self_seconds": 0.024801792000000003,
+          "cumulative_seconds": 0.10939309800000001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/linalg/_linalg.py",
+          "line": 318,
+          "function": "solve",
+          "primitive_calls": 7,
+          "calls": 7,
+          "self_seconds": 0.09576891000000001,
+          "cumulative_seconds": 0.09603719000000001
+        }
+      ],
+      "top_self": [
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 190,
+          "function": "sample_blocks_nb",
+          "primitive_calls": 8003,
+          "calls": 8003,
+          "self_seconds": 103.142217098,
+          "cumulative_seconds": 103.18177495100001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/data_reader.py",
+          "line": 57,
+          "function": "prepare_tracks",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.8042030680000001,
+          "cumulative_seconds": 1.9049496380000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'reduce' of 'numpy.ufunc' objects>",
+          "primitive_calls": 48294,
+          "calls": 48294,
+          "self_seconds": 0.565063321,
+          "cumulative_seconds": 0.565063321
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method '__deepcopy__' of 'numpy.ndarray' objects>",
+          "primitive_calls": 294,
+          "calls": 294,
+          "self_seconds": 0.300017527,
+          "cumulative_seconds": 0.300017527
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 170,
+          "function": "prepare_block_proposals",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.250750079,
+          "cumulative_seconds": 0.283048054
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py",
+          "line": 1324,
+          "function": "diff",
+          "primitive_calls": 20000,
+          "calls": 20000,
+          "self_seconds": 0.23809407300000002,
+          "cumulative_seconds": 0.26415325700000003
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 219,
+          "function": "smooth_initial_cpu",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.23124016100000003,
+          "cumulative_seconds": 0.231258348
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_math.py",
+          "line": 28,
+          "function": "covMat",
+          "primitive_calls": 6,
+          "calls": 6,
+          "self_seconds": 0.210775821,
+          "cumulative_seconds": 0.21081766100000002
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/metropolis.py",
+          "line": 257,
+          "function": "sample_blocks",
+          "primitive_calls": 8003,
+          "calls": 8003,
+          "self_seconds": 0.186368147,
+          "cumulative_seconds": 103.88583016700001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/scripts/validate_sampling_defaults.py",
+          "line": 18,
+          "function": "measure",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.122767605,
+          "cumulative_seconds": 107.48944749900001
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/model.py",
+          "line": 265,
+          "function": "run_warmup",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.12224316700000001,
+          "cumulative_seconds": 90.98432639
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/_methods.py",
+          "line": 76,
+          "function": "_count_reduce_items",
+          "primitive_calls": 8010,
+          "calls": 8010,
+          "self_seconds": 0.117965631,
+          "cumulative_seconds": 0.127844325
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+          "line": 89,
+          "function": "_wrapreduction_any_all",
+          "primitive_calls": 40264,
+          "calls": 40264,
+          "self_seconds": 0.09691337300000001,
+          "cumulative_seconds": 0.400604923
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/linalg/_linalg.py",
+          "line": 318,
+          "function": "solve",
+          "primitive_calls": 7,
+          "calls": 7,
+          "self_seconds": 0.09576891000000001,
+          "cumulative_seconds": 0.09603719000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'extend' of 'list' objects>",
+          "primitive_calls": 20000,
+          "calls": 20000,
+          "self_seconds": 0.093798636,
+          "cumulative_seconds": 0.093798636
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/gp_initialization.py",
+          "line": 196,
+          "function": "construct_covariances",
+          "primitive_calls": 2,
+          "calls": 2,
+          "self_seconds": 0.089795684,
+          "cumulative_seconds": 0.30333565300000004
+        },
+        {
+          "file": "/home/dps/Documents/github/GPDiffusionMapping/.venv/lib/python3.12/site-packages/numpy/_core/_methods.py",
+          "line": 110,
+          "function": "_mean",
+          "primitive_calls": 8010,
+          "calls": 8010,
+          "self_seconds": 0.084021988,
+          "cumulative_seconds": 0.46398521800000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'argsort' of 'numpy.ndarray' objects>",
+          "primitive_calls": 20000,
+          "calls": 20000,
+          "self_seconds": 0.07476231300000001,
+          "cumulative_seconds": 0.07476231300000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method numpy.asarray>",
+          "primitive_calls": 20034,
+          "calls": 20034,
+          "self_seconds": 0.06630928300000001,
+          "cumulative_seconds": 0.06630928300000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.print>",
+          "primitive_calls": 24019,
+          "calls": 24019,
+          "self_seconds": 0.042338209,
+          "cumulative_seconds": 0.042338209
+        }
+      ],
+      "peak_process_rss_kib": 445652
+    }
+  ],
+  "qualification": "Warmed Linux CPU measurements; profiling adds overhead."
+}

@@ -102,8 +102,14 @@ The CPU suite checks independent Gaussian densities, GP mathematics,
 Metropolis acceptance, posterior quadrature, Brownian physics, uniform/smooth
 field recovery, irregular timestamps, full-chain convergence and physical
 inference through CSV/Parquet with column overrides and unit conversion.
-The latest local run passed **48 scientific tests** with zero skips; detailed
-measurements are in [the CPU results](docs/cpu-only-scientific-results.json).
+The latest local run passed **56 scientific tests** with zero skips; detailed
+measurements are in [the CPU results](docs/cpu-optimized-scientific-results.json).
+CPU proposals reuse exact Gaussian likelihood terms and buffers, with an exact
+incremental prior calculation for coefficient moves. The model and sampling
+schedule are unchanged. See [the optimization report](docs/cpu-optimization.txt)
+for measured performance and independent numerical checks. Isolated warmed
+full-inference comparisons measured **1.29× faster 2D** (41.28 → 31.90 s) and
+**1.66× faster 3D** (102.72 → 61.82 s) on the validated workloads.
 
 GPU support was removed after performance review: measured full-inference
 speedups were about 1.33× for large 2D and 1.05× for 3D, while small workloads

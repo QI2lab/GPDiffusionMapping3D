@@ -6,6 +6,40 @@ import numpy as np
 from gp_math import indexShuffler, logNormpdf
 
 
+@nb.njit(cache=True)
+def observation_log_terms(field, energy, half_dimension):
+    """Evaluate Gaussian log terms whose observation constants cancel."""
+    terms = np.empty_like(field)
+    for j in range(len(field)):
+        terms[j] = -half_dimension * np.log(field[j]) - energy[j] / field[j]
+    return terms
+
+
+@nb.njit(cache=True)
+def proposal_likelihood_difference(
+    field, column, change, energy, half_dimension,
+    old_terms, proposed, proposed_terms,
+):
+    """Evaluate an exact positive proposal using reusable float64 buffers.
+
+    Observation-independent normalization terms cancel. Cached current-state
+    terms avoid recomputing its logarithm and reciprocal. The reduction remains
+    ordered, without fast-math, approximate logarithms or parallel proposals.
+    """
+    for j in range(len(field)):
+        value = field[j] + column[j] * change
+        if not value > 0:
+            return 0.0, False
+        proposed[j] = value
+        proposed_terms[j] = (
+            -half_dimension * np.log(value) - energy[j] / value
+        )
+    difference = 0.0
+    for j in range(len(field)):
+        difference += proposed_terms[j] - old_terms[j]
+    return difference, True
+
+
 @nb.jit(nopython=True, cache=True)
 def diffusionPointSamplerSA_nb(
     nIndu,
@@ -27,6 +61,7 @@ def diffusionPointSamplerSA_nb(
     temperature,
     diagnostics=None,
     additive=False,
+    energy=None,
 ):
     """Perform one sequential inverse-coordinate Metropolis sweep."""
 
@@ -40,6 +75,19 @@ def diffusionPointSamplerSA_nb(
 
     # Shuffle the index to sample through alpha vect randomly
     shuffledIndex = indexShuffler(nIndu)
+    half_dimension = samples.shape[1] / 2
+    if energy is None:
+        # Retain independently callable low-level sampling. Inference supplies
+        # the statistic prepared once during initialization.
+        energy = np.empty(len(dDataOld))
+        for j in range(len(dDataOld)):
+            squared = 0.0
+            for axis in range(samples.shape[1]):
+                squared += (samples[j, axis] - means[j, axis]) ** 2
+            energy[j] = squared / (4 * deltaT[j])
+    old_terms = observation_log_terms(dDataOld, energy, half_dimension)
+    dDataNew = np.empty_like(dDataOld)
+    new_terms = np.empty_like(old_terms)
 
     # Propose new dIndu by sampling random points in inverse space
     for pointIndex in shuffledIndex:
@@ -54,25 +102,27 @@ def diffusionPointSamplerSA_nb(
 
         # Incorporate new point into dInduNew and dDataNew
         dInduNew = dInduOld + cInduIndu[:, pointIndex] * alphaDiff
-        dDataNew = dDataOld + cInduData[pointIndex, :] * alphaDiff
-
         # Make sure sampled diffusion values are all positive
         positive_inducing = np.all(dInduNew > 0)
-        positive_data = np.all(dDataNew > 0)
+        positive_data = False
+        logPosteriorRatio = 0.0
+        if positive_inducing:
+            logPosteriorRatio, positive_data = proposal_likelihood_difference(
+                dDataOld, cInduData[pointIndex], alphaDiff, energy,
+                half_dimension, old_terms, dDataNew, new_terms,
+            )
         if diagnostics is not None:
             if not positive_inducing:
                 diagnostics[0, pointIndex] += 1
             elif not positive_data:
                 diagnostics[1, pointIndex] += 1
         if positive_data and positive_inducing:
-            # Probability of old and new function
-            pNew = cpu_log_posterior(
-                dInduNew, dDataNew, priorMean, cInduInduInv,
-                means, samples, deltaT,
+            # The inducing move is R[:, k] * change, with R the same
+            # regularized covariance used by the prior: R^-1 R[:, k] = e_k.
+            logPosteriorRatio -= (
+                alphaDiff * (dInduOld[pointIndex] - priorMean[pointIndex])
+                + 0.5 * alphaDiff**2 * cInduIndu[pointIndex, pointIndex]
             )
-
-            # Compute acceptance probability from tempered distribution
-            logPosteriorRatio = pNew - pOld
             logPropRatio = (
                 0.0
                 if additive
@@ -86,8 +136,9 @@ def diffusionPointSamplerSA_nb(
             ):
                 accCounter[pointIndex] = 1
                 dInduOld = dInduNew
-                dDataOld = dDataNew
-                pOld = pNew
+                dDataOld, dDataNew = dDataNew, dDataOld
+                old_terms, new_terms = new_terms, old_terms
+                pOld += logPosteriorRatio
                 alphaVect[pointIndex] = newAlphaPoint
                 if diagnostics is not None:
                     diagnostics[3, pointIndex] += alphaDiff**2
@@ -155,6 +206,7 @@ def diffusionPointSampler(variables, data):
         temperature,
         getattr(variables, "proposal_stats", None),
         getattr(variables, "proposal", "relative") == "additive",
+        variables.a,
     )
     variables.dIndu = dIndu
     variables.P = P
@@ -206,6 +258,10 @@ def sample_blocks_nb(
 ):
     """Sequential symmetric block MH with exact Gaussian likelihood ratios."""
     accepted = np.zeros(len(epsilon))
+    half_dimension = dimensions / 2
+    old_terms = observation_log_terms(field, a, half_dimension)
+    proposed = np.empty_like(field)
+    proposed_terms = np.empty_like(old_terms)
     for block in indexShuffler(len(epsilon)):
         low = block * block_size
         high = min(len(inducing), low + block_size)
@@ -220,16 +276,14 @@ def sample_blocks_nb(
                 diagnostics[0, block] += 1
             continue
         field_change = change @ basis[low:high]
-        proposed = field + field_change
-        if np.any(proposed <= 0):
+        difference, positive = proposal_likelihood_difference(
+            field, field_change, 1.0, a, half_dimension,
+            old_terms, proposed, proposed_terms,
+        )
+        if not positive:
             if diagnostics is not None:
                 diagnostics[1, block] += 1
             continue
-        difference = 0.0
-        for j in range(len(field)):
-            difference += -dimensions / 2 * np.log(proposed[j] / field[j]) - a[
-                j
-            ] * (1 / proposed[j] - 1 / field[j])
         difference -= change @ (
             np.ascontiguousarray(prior_directions[:, low:high].T)
             @ (inducing - prior_mean)
@@ -244,7 +298,8 @@ def sample_blocks_nb(
         )
         if difference / temperature > np.log(np.random.rand()):
             inducing += inducing_change
-            field = proposed
+            field, proposed = proposed, field
+            old_terms, proposed_terms = proposed_terms, old_terms
             posterior += difference
             accepted[block] = 1
             if diagnostics is not None:

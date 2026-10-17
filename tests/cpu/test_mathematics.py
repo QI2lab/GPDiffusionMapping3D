@@ -155,6 +155,12 @@ def test_single_metropolis_proposal_against_full_density(seed, additive):
         result[2], proposed if expected_accept else field, rtol=2e-14
     )
     assert bool(result[3][0]) == expected_accept
+    np.testing.assert_allclose(
+        result[1],
+        density(new, proposed) - prior_normalization
+        if expected_accept else actual_p,
+        rtol=2e-14, atol=2e-14,
+    )
 
 
 @pytest.mark.parametrize("seed", [11, 12, 13])
@@ -162,3 +168,59 @@ def test_whitened_block_step_against_full_density(seed):
     from scripts.posterior_oracle import validate_block_step
 
     validate_block_step("cpu", seed)
+
+
+@pytest.mark.parametrize("dimensions", [2, 3])
+@pytest.mark.parametrize("change", [0.0, 1e-8, 0.2])
+def test_cached_observation_proposal_against_gaussian_density(dimensions, change):
+    from metropolis import observation_log_terms, proposal_likelihood_difference
+
+    # Vary diffusion and elapsed time independently over a broad physical range.
+    field = np.array([1e-8, 0.6, 0.9, 1e8])
+    column = np.array([1e-9, -0.2, 0.3, -1e7])
+    dt = np.array([0.01, 0.03, 0.125, 0.75])
+    standardized = np.array([
+        [0.2, -0.7, 1.1], [-0.5, 0.4, -1.2],
+        [1.3, 0.1, -0.3], [-0.8, -1.5, 0.6],
+    ])[:, :dimensions]
+    steps = standardized * np.sqrt(2 * field[:, None] * dt[:, None])
+    energy = np.sum(steps**2, axis=1) / (4 * dt)
+    old_terms = observation_log_terms(field, energy, dimensions / 2)
+    proposed, new_terms = np.empty_like(field), np.empty_like(field)
+    actual, positive = proposal_likelihood_difference(
+        field, column, change, energy, dimensions / 2,
+        old_terms, proposed, new_terms,
+    )
+    assert positive
+    expected_field = field + column * change
+    old_density = stats.norm.logpdf(
+        steps, scale=np.sqrt(2 * field[:, None] * dt[:, None])
+    ).sum(axis=1)
+    new_density = stats.norm.logpdf(
+        steps, scale=np.sqrt(2 * expected_field[:, None] * dt[:, None])
+    ).sum(axis=1)
+    bound = 64 * np.finfo(float).eps * max(
+        1, np.sum(abs(old_density)) + np.sum(abs(new_density))
+    )
+    np.testing.assert_allclose(
+        actual, np.sum(new_density - old_density), rtol=0, atol=bound
+    )
+    np.testing.assert_allclose(
+        new_terms - old_terms, new_density - old_density, rtol=0, atol=bound
+    )
+    if change == 0:
+        assert actual == 0
+
+
+@pytest.mark.parametrize("invalid", [0.0, -0.1])
+def test_cached_proposal_rejects_zero_probability_diffusion(invalid):
+    from metropolis import observation_log_terms, proposal_likelihood_difference
+
+    field = np.array([0.5, 0.8])
+    energy = np.array([0.2, 0.3])
+    terms = observation_log_terms(field, energy, 1.5)
+    _, positive = proposal_likelihood_difference(
+        field, np.array([invalid - 0.5, 0.0]), 1.0, energy, 1.5,
+        terms, np.empty_like(field), np.empty_like(field),
+    )
+    assert not positive  # The physical Gaussian law has no support at D <= 0.

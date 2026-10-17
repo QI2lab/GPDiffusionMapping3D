@@ -93,6 +93,38 @@ def inference(
             },
         )
     elapsed = time.perf_counter() - start
+    # Independently rebuild the regularized GP and normalized Gaussian target.
+    # In particular this checks accumulated incremental posterior updates, not
+    # just recovery of a plausible MAP field.
+    coordinates = v.induCoordinates
+    covariance = v.covLambda**2 * np.exp(
+        -np.sum((coordinates[:, None] - coordinates[None]) ** 2, axis=2)
+        / (2 * v.covL**2)
+    )
+    covariance += 0.01 * covariance.mean() * np.eye(len(coordinates))
+    cross = v.covLambda**2 * np.exp(
+        -np.sum(
+            (data.trajectories[::2, None] - coordinates[None]) ** 2, axis=2
+        ) / (2 * v.covL**2)
+    )
+    independent_weights = np.linalg.solve(covariance, cross.T).T
+    steps = data.trajectories[1::2] - data.trajectories[::2]
+    prior_mean = np.mean(np.sum(steps**2, axis=1) / (4 * data.deltaT))
+    maximum_density_error = 0.0
+    for index in (0, len(samples) // 2, len(samples) - 1):
+        field = independent_weights @ samples[index]
+        assert np.all(field > 0) and np.all(samples[index] > 0)
+        residual = samples[index] - prior_mean
+        direct = stats.norm.logpdf(
+            steps, scale=np.sqrt(2 * field[:, None] * data.deltaT)
+        ).sum() - 0.5 * residual @ np.linalg.solve(covariance, residual)
+        error = float(abs(direct - posterior[index]))
+        bound = (
+            128 * np.finfo(float).eps * np.linalg.cond(covariance)
+            * max(1, abs(direct))
+        )
+        assert error < bound
+        maximum_density_error = max(maximum_density_error, error)
     points = np.array(
         [(x, y) for x in np.linspace(-1, 1, 3) for y in np.linspace(-1, 1, 3)]
     )
@@ -126,6 +158,7 @@ def inference(
         iterations=iterations,
         seconds=elapsed,
         recovery_rms=error,
+        full_density_max_error=maximum_density_error,
         mc_error=mc_error,
         estimate=estimate.tolist(),
     )

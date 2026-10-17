@@ -2,11 +2,18 @@ CURRENT STATUS: CPU-ONLY FOLLOWING THE USER'S PERFORMANCE REVIEW
 
 GPU support and its dependencies were subsequently removed in favor of the
 validated NumPy/Numba float64 path. The complete CPU-only scientific suite
-passed 48 tests with zero skips in 1769.59 seconds, including four-chain
-convergence for uniform/smooth 3D fields. See cpu-only-decision.txt for the decision
+passed 56 tests with zero skips in 1087.37 seconds, including four-chain
+convergence for uniform/smooth 3D fields. Subsequent exact CPU proposal
+optimizations are recorded in cpu-optimization.txt. See cpu-only-decision.txt for the decision
 and current validation. All GPU commands, timings and stage claims below
 describe the historical implementation at local commit 39c7eeb; they are not
 commands supported by the current CPU-only checkout.
+
+Current isolated CPU optimization timings (float64, warmed, no profiler):
+2D 100k transitions/m36/100 production: 41.2806 -> 31.8989 s (1.294x).
+3D 20k transitions/m125/1000 production: 102.7181 -> 61.8244 s (1.661x).
+Schedules/grids are unchanged; see cpu-optimization-performance.json and
+cpu-optimized-scientific-results.json for complete conditions and validation.
 
 HISTORICAL LOCAL RESULTS: STAGES 0-5 COMPLETE
 

@@ -1,8 +1,9 @@
 CURRENT STATUS
-CPU-only float64; the complete suite passed 48 tests with zero skips, including
+CPU-only float64; the complete suite passed 56 tests with zero skips, including
 both full four-chain convergence cases. This follows the user's performance review after Stages 0–5
 completed at revision 39c7eeb. See cpu-only-decision.txt for the simplification
-and current scientific validation. GPU commands in this timeline apply to the
+and CPU removal validation; cpu-optimization.txt records the subsequent exact
+CPU proposal optimization and current scientific validation. GPU commands in this timeline apply to the
 historical implementation. The dated findings below include failed intermediate
 experiments; see RESULTS.txt for the final pre-removal measurements.
 
