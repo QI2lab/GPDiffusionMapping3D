@@ -17,6 +17,10 @@ GitHub Actions artifacts for seven days.
 
 ## Request full convergence
 
+Create the repository label once: open
+[Labels](https://github.com/dpshepherd/GPDiffusionMapping/labels), click
+**New label**, enter `run-convergence`, and click **Create label**.
+
 Add `run-convergence` to an open, non-draft PR ready to merge. This requests
 the two full 3D convergence cases, using four independent chains and 20,000
 production sweeps per chain for uniform and smooth fields.
