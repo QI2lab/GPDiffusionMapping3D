@@ -26,74 +26,34 @@ Inference uses CPU float64 with NumPy/Numba; no GPU installation is needed.
 
 ## Usage
 
-Provide linked tracks as CSV or Parquet. For 2D, use columns `particle #`,
-`x`, `y`, and `timestamp`; for 3D, also include `z`. Positions are in nanometers
-and timestamps in seconds. Both formats work with either dimension.
+Provide linked tracks as CSV or Parquet. Default columns are `particle_id`,
+`x`, `y`, and `timestamp`, plus `z` for 3D. Positions are in nanometers and
+timestamps in seconds. Each cell is inferred separately with its own GP grid.
+
+- **Directory:** each CSV/Parquet file directly inside it represents one cell.
+- **Single file:** a `cell_id` column is required; the CLI automatically groups
+  observations by cell before linking within-particle displacements.
 
 ```bash
-# 2D inference
-uv run --no-sync gpdiffusion-map tracks_2d.csv --dimensions 2 --output-dir results/2d
+# 2D: one file per cell
+uv run --no-sync gpdiffusion-map cells_2d/ --dimensions 2 --output-dir maps_2d
 
-# 3D inference
-uv run --no-sync gpdiffusion-map tracks_3d.parquet --dimensions 3 --output-dir results/3d
+# 3D: all cells in one CSV (Parquet also works)
+uv run --no-sync gpdiffusion-map all_cells.csv --dimensions 3 --output-dir maps_3d
 
-# Legacy 2D input without timestamps: specify seconds per frame
-uv run --no-sync gpdiffusion-map legacy.csv --dimensions 2 \
+# Legacy 2D files without timestamps: provide seconds per frame
+uv run --no-sync gpdiffusion-map legacy_cells/ --dimensions 2 \
   --x-col xPos --y-col yPos --delta-t 0.03333333333333333
 ```
 
-Each output directory contains the inferred map, samples and metadata.
-Use `uv run --no-sync gpdiffusion-map --help` for column overrides and unit
-conversion.
+Each cell gets a `cell_<identifier>/` output folder containing its map,
+samples, metadata and sampling log. Directory inputs use filename stems as
+cell identifiers; single-file inputs use `cell_id` values. Special characters
+are URL-encoded in folder names. Particle IDs may repeat across cells.
 
-**One file per cell:** put the cell files in `cells/` and run this Bash loop.
-Use unique filename stems and change `--dimensions 3` to `2` for 2D data.
-
-```bash
-for file in cells/*.csv cells/*.parquet; do
-  [ -f "$file" ] || continue
-  name="${file##*/}"
-  uv run --no-sync gpdiffusion-map "$file" --dimensions 3 \
-    --output-dir "maps/${name%.*}" || break
-done
-```
-
-**One file containing many cells:** include a `cell_id` column and split it
-before inference. Save this example as `batch_cells.py`, set the input path
-and dimensions, then run `uv run --no-sync python batch_cells.py`:
-
-```python
-from pathlib import Path
-import subprocess
-from tempfile import TemporaryDirectory
-from urllib.parse import quote
-
-import pandas as pd
-
-source = Path("all_cells.parquet")  # .csv also works
-dimensions = "3"  # "2" for 2D
-tracks = (
-    pd.read_parquet(source)
-    if source.suffix == ".parquet"
-    else pd.read_csv(source, dtype={"particle #": "string", "cell_id": "string"})
-)
-if tracks["cell_id"].isna().any():
-    raise ValueError("Every observation must have a cell_id")
-
-with TemporaryDirectory() as temporary:
-    for cell_id, rows in tracks.groupby("cell_id", sort=False):
-        name = "cell_" + quote(str(cell_id), safe="")
-        path = Path(temporary) / f"{name}.csv"
-        rows.to_csv(path, index=False)
-        subprocess.run([
-            "uv", "run", "--no-sync", "gpdiffusion-map", str(path),
-            "--dimensions", dimensions, "--output-dir", str(Path("maps") / name),
-        ], check=True)
-```
-
-This produces one map per cell under `maps/`. Particle IDs may repeat between
-cells: grouping by `cell_id` keeps their tracks separate. Cells are inferred
-independently, with a separate spatial grid for each cell.
+Use `uv run --no-sync gpdiffusion-map --help` for column overrides, including
+`--cell-col` and `--particle-col`, and unit conversion. Existing files using
+`particle #` can use `--particle-col 'particle #'`.
 
 ## Changes from Original
 

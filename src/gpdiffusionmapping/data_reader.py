@@ -148,19 +148,19 @@ def prepare_tracks(particles, positions, timestamps, scale=1):
 
 
 def data_reader_3d(path, scale=1):
-    """Read already-linked particle #, z, y, x, timestamp CSV observations."""
+    """Read already-linked particle_id, z, y, x, timestamp CSV observations."""
     import csv
     from pathlib import Path
 
     with Path(path).open(newline="") as stream:
         reader = csv.DictReader(stream)
-        required = ("particle #", "z", "y", "x", "timestamp")
+        required = ("particle_id", "z", "y", "x", "timestamp")
         if not set(required).issubset(reader.fieldnames or ()):
             raise ValueError(f"3D CSV requires columns {required}")
         rows = list(reader)
     try:
         return prepare_tracks(
-            [row["particle #"] for row in rows],
+            [row["particle_id"] for row in rows],
             [[float(row[c]) for c in ("z", "y", "x")] for row in rows],
             [float(row["timestamp"]) for row in rows],
             scale=scale,
@@ -169,7 +169,7 @@ def data_reader_3d(path, scale=1):
         raise ValueError(f"Invalid timestamped 3D tracks: {error}") from error
 
 
-def read_track_table(path, particle_col="particle #"):
+def read_track_table(path, particle_col="particle_id", cell_col=None):
     """Read CSV or Parquet while preserving linked particle identities.
 
     Parameters
@@ -179,6 +179,8 @@ def read_track_table(path, particle_col="particle #"):
     particle_col : str, optional
         Exact identity column. CSV identities are read as strings to avoid
         rounding large integer identifiers through floating point.
+    cell_col : str or None, optional
+        Preserve this CSV cell identifier as a string as well.
 
     Returns
     -------
@@ -191,8 +193,11 @@ def read_track_table(path, particle_col="particle #"):
     path = Path(path)
     match path.suffix.lower():
         case ".csv":
+            identities = {particle_col: "string"}
+            if cell_col is not None:
+                identities[cell_col] = "string"
             return pd.read_csv(
-                path, dtype={particle_col: "string"}, skipinitialspace=True
+                path, dtype=identities, skipinitialspace=True
             )
         case ".parquet":
             return pd.read_parquet(path, engine="pyarrow")
@@ -201,7 +206,7 @@ def read_track_table(path, particle_col="particle #"):
 
 
 def prepare_table_tracks(
-    table, *, dimensions=3, particle_col="particle #", z_col="z", y_col="y",
+    table, *, dimensions=3, particle_col="particle_id", z_col="z", y_col="y",
     x_col="x", time_col="timestamp", scale=1, delta_t=None,
 ):
     """Map table columns and prepare physical within-particle transitions.
@@ -283,6 +288,80 @@ def read_tracks(path, **column_options):
         Prepared within-particle transitions in nanometers and seconds.
     """
     table = read_track_table(
-        path, particle_col=column_options.get("particle_col", "particle #")
+        path, particle_col=column_options.get("particle_col", "particle_id")
     )
     return prepare_table_tracks(table, **column_options)
+
+
+def iter_cell_tracks(
+    path, *, cell_col="cell_id", dimensions=3, particle_col="particle_id",
+    z_col="z", y_col="y", x_col="x", time_col="timestamp", scale=1,
+    delta_t=None,
+):
+    """Yield separate physical tracks and safe output names for each cell.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        A CSV/Parquet file requiring a cell identifier column, or a directory
+        whose immediate CSV/Parquet files each represent one cell.
+    cell_col : str, optional
+        Cell identifier column for a combined file. Directory cell names come
+        from filenames; an optional cell column must identify only one cell.
+    dimensions, particle_col, z_col, y_col, x_col, time_col, scale, delta_t
+        Spatial dimensions, exact column mappings and physical conversions
+        accepted by prepare_table_tracks.
+
+    Yields
+    ------
+    tuple[str, types.SimpleNamespace]
+        Output subdirectory name and independently prepared cell observations,
+        including source_file and cell_id provenance.
+    """
+    from pathlib import Path
+    from urllib.parse import quote
+
+    path = Path(path)
+    directory = path.is_dir()
+    files = (
+        sorted(p for p in path.iterdir()
+               if p.is_file() and p.suffix.lower() in {".csv", ".parquet"})
+        if directory else [path]
+    )
+    if not files:
+        raise ValueError("Input directory contains no CSV or Parquet files")
+    if cell_col in {particle_col, z_col, y_col, x_col, time_col}:
+        raise ValueError("Cell column must be distinct from track columns")
+    if directory and len({p.stem.casefold() for p in files}) != len(files):
+        raise ValueError("Each cell file must have a unique filename stem")
+    names = set()
+    for source in files:
+        table = read_track_table(source, particle_col, cell_col)
+        if table.empty:
+            raise ValueError(f"No observations in {source}")
+        if cell_col in table:
+            values = table[cell_col]
+            if values.isna().any() or values.astype(str).str.strip().eq("").any():
+                raise ValueError(f"Every observation needs a {cell_col} in {source}")
+        elif not directory:
+            raise ValueError(f"Single-file input requires column {cell_col!r}")
+        if directory:
+            if cell_col in table and table[cell_col].nunique() != 1:
+                raise ValueError(f"Each directory file must contain one cell: {source}")
+            cells = [(source.stem, table)]
+        else:
+            cells = table.groupby(cell_col, sort=False, observed=True)
+        for identity, rows in cells:
+            identity = str(identity)
+            name = "cell_" + quote(identity, safe="")
+            if name.casefold() in names:
+                raise ValueError(f"Cell output names collide for {identity!r}")
+            names.add(name.casefold())
+            data = prepare_table_tracks(
+                rows, dimensions=dimensions, particle_col=particle_col,
+                z_col=z_col, y_col=y_col, x_col=x_col, time_col=time_col,
+                scale=scale, delta_t=delta_t,
+            )
+            data.cell_id = identity
+            data.source_file = str(source.resolve())
+            yield name, data

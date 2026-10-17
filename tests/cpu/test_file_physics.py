@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Project attribution: see LICENSE and NOTICE.
 
-"""Physical diffusion recovery through the CPU file-input pipeline."""
+"""Independent per-cell diffusion recovery through automatic CPU batching."""
 
 import pytest
 

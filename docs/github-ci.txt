@@ -6,13 +6,13 @@ tests/support/; no CI tests depend on a top-level scripts directory.
 
 Scientific CI (.github/workflows/scientific-ci.yml) runs on pull requests and
 pushes to main/master, avoiding duplicate feature-branch push and PR runs.
-It retains 55 of the 57 scientific cases, split into four parallel
+It retains 56 of the 58 scientific cases, split into four parallel
 Linux/Python-3.12 jobs:
 
     unit         23 cases: independent mathematical identities and proposals
     posterior     4 cases: additive/blocked chains versus refined quadrature
     physics      24 cases: Brownian laws and 2D/3D ground-truth field recovery
-    files         4 cases: CSV, Parquet, column/unit overrides and legacy XY
+    files         5 cases: per-cell CSV/Parquet, overrides and legacy XY
 
 All recovery seeds and finer-step cases are retained. Only the two full 3D
 convergence cases are deferred from this shorter workflow. No inference code,
@@ -38,7 +38,7 @@ whether the PR is actually ready to merge.
 
 The shorter Scientific CI workflow runs on PRs and main/master pushes and
 supports workflow_dispatch. Neither workflow has a nightly schedule. To check
-all 57 cases before merging, use the 55 ordinary PR checks plus the explicitly
+all 58 cases before merging, use the 56 ordinary PR checks plus the explicitly
 requested convergence checks on the same PR revision.
 
 Jobs use CPU float64, Ubuntu 24.04 and uv's managed Python 3.12. Each checkout
@@ -84,6 +84,13 @@ A collection audit confirmed the four short selections are disjoint and their
 union excludes exactly the two full convergence cases. Both workflows passed
 actionlint v1.7.12. Published action refs were checked and pinned to commits.
 Current local selections and measurements are in github-ci-results.json.
+
+Automatic cell batching adds a fifth file case. All 56 shorter cases passed
+locally with zero failures, errors or skips; the five file cases now recover
+two distinct cell fields each, including repeated particle identifiers and
+separate spatial domains. File validation took 392.65 s; each cell retains the
+validated warmup and production schedule. Current measurements and physical
+errors are in cell-batch-validation.json. Full convergence was not rerun.
 
 Fresh-runner correction
 -----------------------

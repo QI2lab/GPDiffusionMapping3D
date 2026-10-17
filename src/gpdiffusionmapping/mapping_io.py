@@ -3,21 +3,26 @@
 
 """File orchestration and scientific output, separate from sampling."""
 
+import contextlib
 import json
 from pathlib import Path
 
 import numpy as np
 
-from .data_reader import read_tracks
+from .data_reader import iter_cell_tracks, read_tracks
 from . import model
+
+
 def infer_file(
     path: str | Path, *, dimensions: int = 3, backend: str = "cpu",
     dtype: str = "float64", iterations: int = 1000, scale: float = 1,
-    delta_t: float | None = None, particle_col: str = "particle #",
+    delta_t: float | None = None, particle_col: str = "particle_id",
     z_col: str = "z", y_col: str = "y", x_col: str = "x",
     time_col: str = "timestamp", **model_options,
 ) -> tuple:
-    """Infer a static field from linked CSV or Parquet tracks.
+    """Infer a static field from an already separated cell's linked tracks.
+
+    Use map_cells for automatic grouping and per-cell output.
 
     Parameters
     ----------
@@ -58,6 +63,51 @@ def infer_file(
     return data, variables, samples, posterior
 
 
+def map_cells(
+    path: str | Path, output_dir: str | Path, *, dimensions: int = 3,
+    cell_col: str = "cell_id", particle_col: str = "particle_id",
+    z_col: str = "z", y_col: str = "y", x_col: str = "x",
+    time_col: str = "timestamp", scale: float = 1,
+    delta_t: float | None = None, iterations: int = 1000,
+    backend: str = "cpu", dtype: str = "float64", **model_options,
+):
+    """Infer and save one independent map per cell, yielding output directories.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Combined CSV/Parquet file with cell identifiers, or a directory with
+        one file per cell. Directory traversal is not recursive.
+    output_dir : str or pathlib.Path
+        Parent for cell_<identifier> subdirectories. File stems identify cells
+        in directory mode. Special characters in identifiers are URL-encoded.
+    dimensions, cell_col, particle_col, z_col, y_col, x_col, time_col, scale, delta_t
+        Input settings accepted by iter_cell_tracks.
+    iterations, backend, dtype, **model_options
+        Per-cell inference settings accepted by model.analyze. Each cell gets
+        a fresh GP grid, warmup and production chain; observations are not pooled.
+
+    Yields
+    ------
+    pathlib.Path
+        Cell directory containing the map, samples, metadata and sampling log.
+    """
+    for name, data in iter_cell_tracks(
+        path, cell_col=cell_col, dimensions=dimensions,
+        particle_col=particle_col, z_col=z_col, y_col=y_col, x_col=x_col,
+        time_col=time_col, scale=scale, delta_t=delta_t,
+    ):
+        directory = Path(output_dir) / name
+        directory.mkdir(parents=True, exist_ok=True)
+        with (directory / "sampling.log").open("w") as log:
+            with contextlib.redirect_stdout(log):
+                variables, samples, posterior = model.analyze(
+                    data, nIter=iterations, backend=backend, dtype=dtype,
+                    **model_options,
+                )
+        yield save_results(directory, data, variables, samples, posterior)
+
+
 def save_results(
     directory: str | Path, data, variables, samples: np.ndarray,
     posterior: np.ndarray,
@@ -71,6 +121,7 @@ def save_results(
     """
     import matplotlib.pyplot as plt
     from . import plotting
+
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     figure = plotting.plot(variables, samples, posterior, data)
@@ -98,6 +149,8 @@ def save_results(
         "constant_diffusion_mle_nm2_s": float(variables.mle),
         "sampling": variables.sampling_metadata,
     }
+    if hasattr(data, "cell_id"):
+        metadata.update(cell_id=data.cell_id, source_file=data.source_file)
     (directory / "metadata.json").write_text(
         json.dumps(metadata, indent=2, default=lambda value: value.tolist())
         + "\n"
