@@ -11,7 +11,7 @@ separates warmup, production and final host-array collection.
 No target, GP parameters, jitter, proposals, RNG order, annealing, adaptation,
 production precision or GPU transfer location is intentionally changed here.
 2D legacy inference and the repaired 3D defaults remain available independently
-of file IO, plotting and the forthcoming command-line wrapper.
+of file IO, plotting and the command-line wrapper.
 
 After separating the modules:
     uv run --no-sync python -m pytest tests/cpu/test_mathematics.py --strict-markers -q
@@ -43,7 +43,7 @@ results are valid, but its GPU timing is explicitly discarded in
 sampling-defaults-initial-check.json. The complete sequential benchmark above
 was repeated with no concurrent inference/tests before accepting its timings.
 
-FILE INPUT AND CLI IMPLEMENTED; FINAL SUITES PENDING
+FILE INPUT AND CLI VALIDATED
 
 read_track_table selects pandas CSV or PyArrow Parquet by suffix. Column mapping
 and physical preparation are shared in prepare_table_tracks / prepare_tracks.
@@ -87,8 +87,51 @@ independent simulation and chi-square prediction, then recover known diffusion.
 IDs above 2^53 expose floating-point identity loss. Unrelated columns are ignored.
 No parser, API, help, snapshot, import or file-existence tests were introduced.
 
-Full scientific runs currently in progress, on separate hardware categories:
+Final full scientific runs, on separate hardware categories:
     OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
     GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+CPU full suite PASSED: 44 passed, 730.90 s, including all four file cases.
+3D file MAP RMS6.7843%; legacy XY3.5743%. Scalar MLE1.000280145 (3D) /
+.992993400 (2D), within their independent chi-square intervals. Gaussian
+density errors are zero /7.276e-12 respectively, within the floating-point
+accumulation bound.
+GPU full suite PASSED: 34 passed, zero skips, 1846.32 s, including all four
+file cases and both fresh four-chain convergence tests using the repaired
+3D proposal default. 3D file MAP RMS5.8673%; legacy XY3.6727%. MLE/density
+checks pass against the same independent simulations and error bounds.
+The 278-quantity convergence diagnostics remain below every original limit:
+maximum R-hat1.005359, minimum bulk ESS2126.68, minimum tail ESS4195.35,
+maximum mean MCSE/SD .02169. CPU/CUDA simultaneous field-mean agreement passes.
+Compact measured results: stage5-scientific-results.json.
 Raw chain/input artifacts stay local and ignored. These concurrent correctness
-runs are not timing comparisons. A final isolated warmed timing remains required.
+runs are not timing comparisons.
+
+FINAL ISOLATED WARMED PERFORMANCE PASSED
+
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+Executed sequentially after both correctness suites stopped. Final warmup
+explicitly exercises floating annealing and integer temperature-one Numba
+signatures. 2D full-model warmup uses five production draws; 3D warmup uses
+one annealing, one adaptation and one production sweep. Warmup is separate
+from the measured inference, with cold Python/CUDA import excluded.
+
+2D100k,m36,n100: CPU40.0194 / CUDA29.9972 s, 1.897% MAP RMS both;
+full-Gaussian density errors0 /2.910e-11. CUDA bulk arrays62453568 bytes,
+pool capacity204835328 bytes. Full-inference GPU speedup1.3341x.
+3D20k,m125,n1000: CPU102.3449 / CUDA97.8870 s, MAP RMS7.3316% /5.0659%;
+full-posterior errors6.185e-10 /4.366e-11. CUDA pool201347584 bytes.
+GPU full timing differs by less than1% from the earlier3D baseline; CPU shows
+no material overhead. All physical and density checks pass. Timings include
+initialization, transfers and the complete inference after numerical warmup.
+
+Initial basic-sweep/temperature-one warming measurements remain qualified
+archives. The one-draw2D warmup's five-batch statistic was undefined and emitted
+NumPy warnings; it is recorded as null in stage5-2d-one-draw-warmup.json.
+Final warming uses five draws and records only its elapsed time. No warning
+suppression or numerical-model change was made. Final steady-state reports are
+stage5-2d-performance.json and sampling-defaults-after-refactor.json.
+
+Stage5 PASSED: all mathematical/physical CPU and actual-CUDA cases, file formats,
+column overrides, physical scaling, CLI execution and performance checks.
+Linux is tested; Windows/macOS/other GPU architectures and CI are untested.

@@ -1,0 +1,149 @@
+{
+  "qualification": "One-draw warmup covered both temperature types. Its five-batch MC error is undefined and recorded as null; NumPy emitted empty-batch warnings. Final timing uses five warmup draws.",
+  "measurements": [
+    {
+      "kind": "density_and_memory",
+      "count": 100000,
+      "backend": "cpu",
+      "gaussian_error": 0.0,
+      "gaussian_bound": 1.2370126457917346e-06,
+      "bulk_array_bytes": 63253584
+    },
+    {
+      "kind": "benchmark",
+      "count": 1000,
+      "backend": "cpu",
+      "initialization_s": 0.004709407687187195,
+      "first_sweep_s": 0.0167568139731884,
+      "sweep_s": 0.0009485995396971703
+    },
+    {
+      "kind": "benchmark",
+      "count": 100000,
+      "backend": "cpu",
+      "initialization_s": 0.4149690829217434,
+      "first_sweep_s": 0.08731131069362164,
+      "sweep_s": 0.08706625867635012
+    },
+    {
+      "kind": "full_model_warmup",
+      "count": 100000,
+      "backend": "cpu",
+      "seed": 41,
+      "feature": true,
+      "substeps": 1,
+      "iterations": 1,
+      "seconds": 16.777995521202683,
+      "recovery_rms": 0.015814392836580145,
+      "mc_error": null,
+      "estimate": [
+        1.1479691256434679,
+        1.226156754446936,
+        1.1196701008205008,
+        1.2673584824992543,
+        1.3955882132239399,
+        1.2523880658206918,
+        1.1630727208183682,
+        1.277189829402682,
+        1.1564514180312482
+      ],
+      "gpu_pool_bytes": 0
+    },
+    {
+      "kind": "end_to_end",
+      "count": 100000,
+      "backend": "cpu",
+      "seed": 41,
+      "feature": true,
+      "substeps": 1,
+      "iterations": 100,
+      "seconds": 40.31985310651362,
+      "recovery_rms": 0.018966307194403294,
+      "mc_error": 0.004639404935349462,
+      "estimate": [
+        1.0992171225130967,
+        1.215508641834835,
+        1.1213507479780342,
+        1.2355553724218435,
+        1.3966326476673891,
+        1.2503463615218893,
+        1.1642751837827274,
+        1.2605285834501774,
+        1.1453961091705462
+      ],
+      "gpu_pool_bytes": 0
+    },
+    {
+      "kind": "density_and_memory",
+      "count": 100000,
+      "backend": "gpu",
+      "gaussian_error": 2.9103830456733704e-11,
+      "gaussian_bound": 1.2370126457917323e-06,
+      "bulk_array_bytes": 62453568
+    },
+    {
+      "kind": "benchmark",
+      "count": 1000,
+      "backend": "gpu",
+      "initialization_s": 0.025995386764407158,
+      "first_sweep_s": 0.02076551504433155,
+      "sweep_s": 0.014986172132194043
+    },
+    {
+      "kind": "benchmark",
+      "count": 100000,
+      "backend": "gpu",
+      "initialization_s": 0.08486373163759708,
+      "first_sweep_s": 0.07811426371335983,
+      "sweep_s": 0.07055295035243034
+    },
+    {
+      "kind": "full_model_warmup",
+      "count": 100000,
+      "backend": "gpu",
+      "seed": 41,
+      "feature": true,
+      "substeps": 1,
+      "iterations": 1,
+      "seconds": 12.27693579159677,
+      "recovery_rms": 0.015814392836559707,
+      "mc_error": null,
+      "estimate": [
+        1.147969125643335,
+        1.2261567544470708,
+        1.119670100820708,
+        1.2673584824992135,
+        1.3955882132240023,
+        1.2523880658207285,
+        1.163072720818465,
+        1.2771898294027737,
+        1.156451418031287
+      ],
+      "gpu_pool_bytes": 204835328
+    },
+    {
+      "kind": "end_to_end",
+      "count": 100000,
+      "backend": "gpu",
+      "seed": 41,
+      "feature": true,
+      "substeps": 1,
+      "iterations": 100,
+      "seconds": 29.99533174186945,
+      "recovery_rms": 0.018966307193751118,
+      "mc_error": 0.004639404935393399,
+      "estimate": [
+        1.0992171225136937,
+        1.215508641836331,
+        1.1213507479811655,
+        1.2355553724225607,
+        1.3966326476680238,
+        1.250346361522867,
+        1.1642751837830956,
+        1.260528583449399,
+        1.1453961091692075
+      ],
+      "gpu_pool_bytes": 204835328
+    }
+  ]
+}

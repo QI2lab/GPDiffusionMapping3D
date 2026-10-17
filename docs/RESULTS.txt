@@ -1,157 +1,149 @@
-LOCAL EXECUTION STATUS
+LOCAL RESULTS: STAGES 0-5 COMPLETE
 
-Branch: feat/3D. All implementation and validation are local; no push or PR.
-Stages 0, 1, 2 and 3 are complete. Stage 2 rejected float32 and retained
-float64. Stage 4 mathematical and physical recovery checks passed, but
-the original sampler failed independent-chain mixing. The user-authorized
-blocked sampler has now passed development and held-out convergence on CPU
-and CUDA. The full scientific suite passed; Stage 4 is complete. Stage 5
-refactoring and CLI are implemented, pending the final full scientific suites
-and isolated performance measurements.
-See sampling-repair-plan.txt and the repair reports.
+Branch feat/3D. Implementation, simulations, validation and commits are local.
+Sampling repair passed before Stage 5 began. Refactoring, the Typer CLI and
+CSV/Parquet input passed the complete scientific suites. uv.lock remains
+local, ignored and untracked.
 
-Environment: Python 3.12.13, NumPy 2.0.2, Numba 0.60.0, SciPy 1.14.1,
-Matplotlib 3.9.4, CuPy 14.2.0, CUDA runtime 12.9. Actual CUDA device:
-NVIDIA GeForce RTX 3090. A fresh synchronized CuPy calculation of
-sum(arange(32, dtype=float64)**2) returned 10416.0.
+FINAL SCIENTIFIC RUNS
 
-The packaging follows the relevant CuPy wheel/extra/default-group strategy
-from QI2lab/opm-processing-v2 revision
-4fbbdfe9cb096d7bb6602c38e76ff51cb88949cd. Imaging packages and unused library
-preloads were not copied. uv.lock stays ignored, local and untracked.
+CPU: 44 passed, 730.90 seconds.
+Required actual CUDA: 34 passed, zero skips, 1846.32 seconds.
+The suites ran separately by hardware category, concurrently for correctness:
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
+    GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+Their durations are not hardware speed comparisons. See
+stage5-scientific-results.json for compact measurements and package versions.
+Both RTX3090s performed actual CuPy float64 sum(arange(32)**2)=10416.0 followed
+by explicit device synchronization. No CPU fallback or hardware skip is used.
 
-SEQUENTIAL WARMED INFERENCE MEASUREMENTS
+FINAL ISOLATED WARMED PERFORMANCE
 
-All rows use float64. Times include initialization, transfers and the complete
-annealing/stabilization/production schedule after kernel/context warmup.
-They do not include cold Python/CUDA import startup. Concurrent correctness
-and long-chain diagnostic runs are not used as speed benchmarks.
+All rows use float64. Times include initialization, transfers, every inference
+phase and return to host after explicit numerical/kernel warmup. Cold Python/
+CUDA import is excluded. No other inference/tests overlapped these accepted
+measurements. GPU memory is retained CuPy pool capacity, not total process VRAM.
 
-Workload           Backend  Full Gaussian error*  MAP RMS recovery  Seconds
-2D:100k,m=36,n=100  CPU      0                    1.897%            43.4735
-2D:100k,m=36,n=100  GPU      2.91e-11             1.897%            30.1589
-3D:20k,m=125,n=100 CPU      7.28e-12             4.971%            32.8878
-3D:20k,m=125,n=100 GPU      7.28e-12             4.971%            30.1335
+Workload          Backend Density error* MAP RMS Seconds    GPU pool bytes
+2D 100k,m36,n100   CPU  0.000e+00  1.897%   40.0194 -
+2D 100k,m36,n100   GPU  2.910e-11  1.897%   29.9972 204835328
+3D 20k,m125,n1000  CPU  6.185e-10  7.332%  102.3449 -
+3D 20k,m125,n1000  GPU  4.366e-11  5.066%   97.8870 201347584
 
-* Absolute log-density error at initialization against independent Gaussian
-calculations on each exact benchmark dataset; not an MCMC convergence metric.
-Initial CPU/GPU field differences: 2D 3.97e-14; 3D 3.49e-14.
-GPU bulk live arrays/pool capacity: 2D 62,453,568 / 210,595,840 bytes;
-3D 41,913,000 / 141,346,816 bytes. Pool capacity includes reusable allocations.
-2D representative full inference speedup was 1.4415x; small 2D runs were slower
-on GPU. Physical recovery of a point estimate does not establish mixing.
+* 2D: initial full Gaussian log density against independent SciPy on the exact
+benchmark data. 3D: maximum full Gaussian plus unnormalized GP-prior error at
+first/middle/final production states. All meet conditioning-based bounds.
+The GP prior normalization is omitted consistently.
 
-PRECISION DECISION
+2D: preserved relative sampler, 200 annealing +200 adaptation +100 production
+sweeps, 100k smooth-field transitions, 6x6 inducing and fine grids, kernel
+standard deviation .5 nm^2/s and length1.2 nm. GPU full-inference
+speedup1.3341x. Bulk resident CUDA arrays62453568 bytes. At100k, warmed sweep
+CPU .08650 / CUDA .07017 s; initialization .41065 /.08537 s. Small1000-step
+sweeps remain slower on GPU.
 
-The predeclared acceptance-log-ratio error budget is 1e-4. Float32 fails it:
-2D stressed error 0.00116543; 100k ordinary/stressed errors 0.0004924/0.00998855;
-3D ordinary/stressed errors 0.0001533/0.0442453. Half-sized float32 arrays and
-successful physical recovery do not override that numerical failure. Float64
-is the validated precision; float32 remains explicitly warned diagnostics.
-No mixed-precision scheme, diffusion floors, or larger jitter were introduced.
+3D: blocks8, 2000 annealing +4000 temperature-one adaptation +1000 additional
+discarded fixed-width +1000 production sweeps, 20k smooth irregular-time
+transitions, 5x5x5 inducing and fine grids, kernel standard deviation .5 nm^2/s
+and length1.5 nm. The timing grid is smaller than the default plotting grid;
+memory values apply to these specified grids. Short timing runs assert recovery and
+density consistency; posterior convergence is established separately below.
 
-HISTORICAL SAMPLING LIMITATION
+Final warmup explicitly exercises floating annealing and integer temperature-one
+Numba signatures. Separate full-model warmup: 2D CPU17.464 / CUDA12.860 s
+(5 production draws after its warmup schedule); 3D CPU0.79744 /
+CUDA0.51172 s (one annealing, one adaptation, one production sweep).
+GPU full timings remain within1% of the pre-function-extraction baseline;
+CPU timings show no material overhead. The initial temperature-one-only and
+one-draw warming reports are qualified archives. The one-draw reporting helper
+had undefined five-batch MC error and emitted warnings; final warmup uses five
+draws and records warmup time separately. No warning suppression was added.
 
-On smooth irregular-time 3D data with independent sampler seeds 41/42 and
-common data seed 41, 5,000 production sweeps after 10,000 annealing and 200
-stabilization sweeps failed the original ten-batch comparison at 4/27 central
-positions. Estimated minimum ESS was CPU 8.47 / GPU 6.20. A later diagnostic
-found maximum rank-normalized split R-hat 1.84, with all 27 positions above
-1.01. MC uncertainty is batch-length-sensitive: the nominal comparison alone
-does not have established 99% coverage when its batches remain dependent.
-Saved evidence: stage4-sampling-5000.json and figures/3d-sampling-5000.png.
+Commands:
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+Reports include initialization, first-sweep and full-model warmup measurements.
+Refactoring retains the validated GPU transfer locations and kernels.
 
-The user authorized a matched uniform/smooth investigation with 10,000 extra
-discarded temperature-one sweeps at fixed proposal widths. See
-stage4-burnin-10000.json and 3d-burnin-investigation.txt for that separate
-experiment. Completed results show uniform/smooth maximum rank split R-hat
-1.78485/1.87365 and minimum projected ESS CPU/GPU 6.62/5.88 and 5.86/5.02.
-Every chain has at least one coefficient with zero accepted production
-updates. Longer fixed-width burn-in did not establish convergence. The
-original 500-sweep-batch comparisons fail at 5/27 uniform and 7/27 smooth
-positions; larger-batch nominal passes are not accepted as convergence.
-Proposal widths for frozen coefficients are severely mismatched to local
-conditional scales. This preserved-sampler investigation motivated the later
-user-authorized proposal repair; the failed evidence remains unchanged.
+VALIDATED 3D SAMPLING
 
-After optional burn-in support, preservation runs passed separately:
-CPU full mathematics/physics: 30 passed, 365.91 s.
-Required GPU excluding the separately executed old long comparison:
-16 passed, 1 deselected, zero skips, 640.74 s. The four extended-burn-in
-chains were run explicitly in the independent investigation, not counted
-as passing pytest tests or as a completed scientific sampling gate.
+The repaired Metropolis sampler uses fixed prior-whitened Fisher directions,
+symmetric Gaussian blocks and recent50-sweep acceptance windows in warmup.
+Geometry and widths are frozen before equilibration and production. The exact
+likelihood, direct GP prior, RBF kernel, original regularization, interpolation
+and positivity support are preserved. See sampling-repair-mathematics.txt.
 
-USER-AUTHORIZED SAMPLING REPAIR
+Development and untouched held-out cases each use four independent chains per
+backend per uniform/smooth field, all20000 production draws and all278 monitored
+quantities:125 inducing values,125 inverse coefficients,27 field sites and log
+posterior. Across both campaigns:
+maximum rank/folded R-hat1.005359 (<1.01);
+minimum bulk ESS2083.29 and tail ESS4113.03 (>=400);
+maximum mean MCSE/posterior SD .02191 (<.05).
+Development MAP RMS4.464-6.832%; held-out3.426-6.326% (<10%).
+CPU/CUDA means pass the predeclared simultaneous sampling intervals.
+Independent full-posterior errors <=1.616e-9 meet numerical bounds. Every block
+accepted production moves. One/two-parameter posterior moments/CDFs also pass
+independent quadrature, including a zero inverse coefficient. Fresh final-suite
+four-chain cases pass the same requirements with the repaired 3D default.
 
-Fixed prior-whitened, Fisher-preconditioned block Metropolis proposals preserve
-the exact transition likelihood, direct GP prior, regularization, interpolation
-and positivity support. Recent 50-sweep acceptance windows tune log proposal
-widths during warmup only. Geometry and widths remain fixed in production.
-Small one/two-parameter posterior moments and CDFs pass independent numerical
-quadrature on actual CPU and CUDA, including a zero inverse coefficient.
-Independent prescribed full-density proposal checks also pass.
+The failed relative sampler, extra10000-sweep burn-in investigation, additive
+pilot and block-size16 campaign remain recorded as failures. Longer burn-in
+alone did not fix the poor tuning and inverse-coordinate correlations, even for
+uniform diffusion. Block-size16 smooth R-hat exceeded1.01 at20000 sweeps and was
+not rounded into a pass. No seeds, priors, jitter or tolerances were changed to
+rescue it. See sampling-repair-plan.txt, sampling-blocked8-development.json,
+sampling-blocked8-heldout.json and their trace/rank figures. Concurrent
+effective-sampling rates are explicitly qualified in the repair plan; no
+convergence-based speed claim is made for failed candidates.
 
-The sixteen-coordinate candidate failed smooth-field R-hat at 20000 sweeps;
-its failed report is retained. Eight-coordinate blocks passed the identical
-development protocol and the untouched held-out protocol, without changing
-the model, seeds, recovery tolerance or convergence thresholds. Each campaign
-uses four chains per backend per field and monitors all 278 quantities:
-125 inducing values, 125 inverse coefficients, 27 central sites, log posterior.
-Warmup: 2000 annealing + 4000 temperature-one adaptation + 1000 additional
-discarded fixed-width sweeps. All 20000 production draws per chain are retained.
+3D defaults use blocks8 and the validated warmup schedule. Production default
+remains1000 as required; a short single run does not establish convergence.
+Use independent seeds and varied positive initial fields through the API.
+Historical 3D reference: proposal="relative", adaptation="legacy".
+2D defaults remain the original relative proposal and legacy schedule.
 
-Campaign/field   Backend max R-hat  min bulk ESS min tail ESS max MCSE/SD
-Development flat CPU    1.005359   2200.44      4777.58      .02134
-Development flat CUDA   1.003811   2126.68      4610.23      .02169
-Development bump CPU    1.004936   2132.64      4195.35      .02169
-Development bump CUDA   1.004896   2164.35      4428.50      .02150
-Held-out flat    CPU    1.004350   2269.05      4311.66      .02100
-Held-out flat    CUDA   1.005008   2221.98      4382.99      .02123
-Held-out bump    CPU    1.004770   2083.29      4228.20      .02191
-Held-out bump    CUDA   1.004915   2101.07      4113.03      .02181
+FILE INPUT, CLI AND UNITS
 
-All MAP RMS errors: development 4.464-6.832%, held-out 3.426-6.326% (<10%).
-All blocks accepted production updates. Independent full-density recomputation
-at first/middle/final states differs by at most 1.608e-9 / 1.616e-9 respectively,
-within conditioning-derived bounds. CPU/CUDA field means agree within the
-predeclared simultaneous sampling intervals in every field and campaign.
-CUDA pool capacity: 201349120 bytes per worker. Concurrent chain durations
-are recorded in JSON but are not isolated CPU/GPU speed measurements.
+All four cases pass on CPU and GPU: CSV, Parquet, renamed Parquet columns with
+micrometer-to-nanometer conversion, and legacy XY CSV. Source seed44 has20000
+linked pairs, IDs above2^53 and row permutations. Gaussian density and scalar
+MLE agree with the independent simulation and chi-square prediction.
+3D MAP RMS CPU6.7843% / GPU5.8673%; legacy2D3.5743% /3.6727%.
+Gaussian-density errors0 /7.276e-12 respectively.
 
-Reports: sampling-blocked8-development.json, sampling-blocked8-heldout.json;
-trace/rank plots: figures/sampling-blocked8-{development,heldout}.png.
-The full required-GPU suite passed 30 tests, zero skips, in 2044.70 s, including
-fresh four-chain convergence tests for both fields. The separate CPU suite
-passed 40 tests in 425.28 s. Stage 4 sampling repair is complete.
-3D defaults now use the validated eight-coordinate blocked warmup schedule;
-2D defaults retain the original relative proposals and legacy schedule.
-Default production length remains 1000; finite-chain convergence was validated
-with four chains and 20000 draws, not a short single default run.
+gpdiffusion-map reads .csv/.parquet and exact particle/Z/Y/X/time overrides.
+3D uses ZYX and actual positive numeric elapsed seconds for static D(z,y,x).
+Legacy2D requires explicit delta_t only when timestamps are absent.
+Positions and numerical diffusion use nm and nm^2/s; the XY-slice figure uses
+micrometers and micrometers squared per second. Outputs: InferredMAP.png,
+inference.npz, metadata.json and sampling.log. Computational functions remain
+independently callable. README.md documents options, mappings and examples.
 
-INSTALLATION AND EXECUTION
+PRECISION AND ENVIRONMENT
 
-GPU development setup:
+Float32 FAILED the unchanged1e-4 acceptance-log-ratio error budget:
+2D stress .00116543; 100k ordinary/stress .0004924/.00998855;
+3D ordinary/stress .0001533/.0442453. Half-sized arrays and point recovery do not
+override failure. Retain float64; no mixed precision, floors or larger jitter.
+File/CLI inference rejects float32; low-level evaluation remains diagnostic.
+
+Python3.12.13, NumPy2.0.2, Numba0.60.0, SciPy1.14.1, Matplotlib3.9.4,
+CuPy14.2.0, CUDA runtime12.9; Typer0.27.3, pandas3.0.6, PyArrow26.0.0.
+Hardware: two NVIDIA GeForce RTX3090s. The relevant CuPy wheel/extra/default-
+group strategy follows QI2lab/opm-processing-v2 revision
+4fbbdfe9cb096d7bb6602c38e76ff51cb88949cd. Unused imaging dependencies and
+preload lists were not copied.
+
+GPU development:
     uv sync --group dev --extra gpu
-CPU-only setup:
+CPU-only:
     uv sync --group dev --no-default-groups
-After setup, retain the selected environment with uv run --no-sync.
+After setup retain the selected environment with uv run --no-sync. Fresh
+checkouts resolve their own ignored lockfile; it is never committed/uploaded.
 
-Scientific suites (CPU and GPU are separate):
-    uv run --no-sync python -m pytest tests/cpu --strict-markers -q
-    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
-The GPU suite now includes four-chain blocked-sampler convergence checks for
-both fields. Historical failures of the original sampler remain in reports.
-Historical executed test counts and subsequent reruns are in
-stage-validation.txt; no skipped run is presented as hardware validation.
-
-Computational API: model.analyze(data, backend="cpu" or "gpu", dtype="float64").
-Optional burn_in specifies additional discarded temperature-one sweeps after
-adaptation. Three-dimensional data preparation uses linked ZYX tracks and
-each displacement's actual numeric elapsed seconds. The inferred field is
-static D(z,y,x). The refactored numerical modules and thin Typer CLI now support
-CSV/Parquet with exact column overrides. Final Stage 5 validation is pending;
-see refactoring-validation.txt for implemented behavior and actual commands.
-
-Windows, macOS, CPU-only fresh installation on a different machine, other
-GPU architectures and CI were not validated. Linux CPU/CUDA results above
-apply to the recorded local environment, not arbitrary dependency resolution.
+Validated locally on Linux CPU/CUDA. Windows, macOS, other GPU architectures
+(including the unused local T1000), CI and fresh installation on another machine
+are untested. Long gaps retain the original short-time Euler approximation.
+No new propagator or temporal GP was added. New datasets/settings still require
+convergence assessment.

@@ -135,10 +135,13 @@ GP prior and positivity constraints. Eight-coordinate blocks passed the
 development checks on both CPU and CUDA: maximum rank/folded R-hat 1.00536,
 minimum bulk ESS 2,127 across all 278 monitored quantities, and physical RMS
 recovery below 6.84%. Held-out confirmation also passed: maximum R-hat 1.00501,
-minimum bulk ESS 2,083 and recovery below 6.33%. The full required-GPU suite
-passed 30 tests with zero skips; the separate CPU suite passed 40 tests.
-Stage 4 is complete. Stage 5 refactoring and CLI are implemented; their complete
-CPU/GPU scientific suites and final performance measurements are in progress.
+minimum bulk ESS 2,083 and recovery below 6.33%. After refactoring and adding
+the file pipeline, the complete suites passed **44 CPU tests** and **34 actual
+GPU tests**, with zero hardware skips. Stages 0–5 are complete. Final isolated
+full-inference timings are CPU/GPU **40.02/30.00 s** for 2D (100k transitions,
+36 inducing values) and **102.34/97.89 s** for 3D (20k transitions, 125 values).
+See `docs/RESULTS.txt` for schedules, numerical error, recovery, memory,
+precision decisions and untested platforms.
 See `docs/sampling-repair-plan.txt`,
 `docs/sampling-blocked8-development.json` and
 `docs/figures/sampling-blocked8-development.png`. The full GPU suite includes

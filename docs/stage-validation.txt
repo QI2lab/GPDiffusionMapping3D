@@ -312,3 +312,35 @@ Full suite: 30 passed, zero skips, 2044.70 s, including both fresh four-chain
 convergence tests. Stage 4 sampling repair PASSED. Stage 5 may now proceed.
 3D defaults select block size8 and the validated warmup schedule. The legacy
 3D relative proposal remains explicit; 2D defaults are unchanged.
+
+Stage5 COMPLETE: separate refactoring and CLI commits followed the passed
+Stage4 gate. Numerical implementations now have focused mathematics,
+initialization and Metropolis modules, with explicit warmup/production/host
+collection functions. The thin Typer command reads CSV/Parquet through shared
+physical track preparation and exact column overrides. Existing units and
+the computational API remain available independently of the command.
+
+Final full scientific runs:
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
+CPU44 passed,730.90 s.
+    GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+GPU34 passed, zero skips,1846.32 s. These include both fresh4-chain convergence
+cases and all4 physical file cases per backend. Timing of concurrent correctness
+runs is not used to claim hardware speedup. See stage5-scientific-results.json.
+
+Final isolated performance after explicit temperature-variant/full-model warmup:
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
+2D100k,m36,n100 CPU40.0194 / GPU29.9972 s, MAP RMS1.897% both, actual
+Gaussian-density errors0 /2.910e-11, CUDA pool204835328 bytes. Speedup1.3341x.
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+3D20k,m125,n1000 CPU102.3449 / GPU97.8870 s, MAP RMS7.3316% /5.0659%,
+posterior-density errors6.185e-10 /4.366e-11, CUDA pool201347584 bytes.
+The qualified initial warmup measurements and one-draw reporting warning are
+retained in refactoring-validation.txt and associated reports. Final measurements
+warm both Numba temperature types explicitly and do not suppress warnings.
+
+Fresh actual synchronized float64 CuPy sum(arange(32)**2) returned10416.0 on
+each of device0/device1, both NVIDIA GeForce RTX3090, CUDA runtime12.9.
+All stages0-5 are complete locally. Float64 is retained; float32 remains rejected.
+No push or PR. uv.lock stays ignored/untracked. See RESULTS.txt and README.md
+for current commands, scientific limits, CLI usage and untested platforms.

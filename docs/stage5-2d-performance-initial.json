@@ -1,0 +1,101 @@
+{
+  "qualification": "Basic sweep warmup; superseded by explicit full-model temperature-variant warmup",
+  "measurements": [
+    {
+      "kind": "density_and_memory",
+      "count": 100000,
+      "backend": "cpu",
+      "gaussian_error": 0.0,
+      "gaussian_bound": 1.2370126457917346e-06,
+      "bulk_array_bytes": 63253584
+    },
+    {
+      "kind": "benchmark",
+      "count": 1000,
+      "backend": "cpu",
+      "initialization_s": 0.004664627835154533,
+      "first_sweep_s": 2.6602365374565125,
+      "sweep_s": 0.0009259195998311043
+    },
+    {
+      "kind": "benchmark",
+      "count": 100000,
+      "backend": "cpu",
+      "initialization_s": 0.4056142680346966,
+      "first_sweep_s": 0.08621414005756378,
+      "sweep_s": 0.08644321970641614
+    },
+    {
+      "kind": "end_to_end",
+      "count": 100000,
+      "backend": "cpu",
+      "seed": 41,
+      "feature": true,
+      "substeps": 1,
+      "iterations": 100,
+      "seconds": 41.16207763180137,
+      "recovery_rms": 0.018966307194403294,
+      "mc_error": 0.004639404935349462,
+      "estimate": [
+        1.0992171225130967,
+        1.215508641834835,
+        1.1213507479780342,
+        1.2355553724218435,
+        1.3966326476673891,
+        1.2503463615218893,
+        1.1642751837827274,
+        1.2605285834501774,
+        1.1453961091705462
+      ],
+      "gpu_pool_bytes": 0
+    },
+    {
+      "kind": "density_and_memory",
+      "count": 100000,
+      "backend": "gpu",
+      "gaussian_error": 2.9103830456733704e-11,
+      "gaussian_bound": 1.2370126457917323e-06,
+      "bulk_array_bytes": 62453568
+    },
+    {
+      "kind": "benchmark",
+      "count": 1000,
+      "backend": "gpu",
+      "initialization_s": 0.02812478318810463,
+      "first_sweep_s": 0.01654602773487568,
+      "sweep_s": 0.015265296958386899
+    },
+    {
+      "kind": "benchmark",
+      "count": 100000,
+      "backend": "gpu",
+      "initialization_s": 0.08408492803573608,
+      "first_sweep_s": 0.0780029185116291,
+      "sweep_s": 0.07222047746181488
+    },
+    {
+      "kind": "end_to_end",
+      "count": 100000,
+      "backend": "gpu",
+      "seed": 41,
+      "feature": true,
+      "substeps": 1,
+      "iterations": 100,
+      "seconds": 30.149492586031556,
+      "recovery_rms": 0.018966307193751118,
+      "mc_error": 0.004639404935393399,
+      "estimate": [
+        1.0992171225136937,
+        1.215508641836331,
+        1.1213507479811655,
+        1.2355553724225607,
+        1.3966326476680238,
+        1.250346361522867,
+        1.1642751837830956,
+        1.260528583449399,
+        1.1453961091692075
+      ],
+      "gpu_pool_bytes": 204835328
+    }
+  ]
+}

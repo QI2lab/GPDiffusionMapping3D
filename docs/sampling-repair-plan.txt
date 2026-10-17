@@ -159,3 +159,13 @@ schedule. Explicit proposal="relative", adaptation="legacy" retains the 3D
 reference; historical recovery helpers request it explicitly. Production
 defaults remain 1000 as required by the plan; convergence was established with
 four chains and 20000 draws each, not claimed for a short single default run.
+
+Effective-sampling rates are reported only for the converged size8 campaign.
+Development minimum bulk ESS divided by the sum of the four chain wall times:
+uniform CPU1.3364 / CUDA1.3168; smooth CPU1.3002 / CUDA1.3350 effective draws
+per chain-second. These are diagnostic rates for the recorded concurrent
+configuration (four CPU processes and four CUDA processes sharing two RTX3090s),
+including warmup and trace writing. They are not isolated hardware speedups.
+No reliable effective-sample-rate comparison is claimed for the nonconverged
+relative, additive-pilot or size16 candidates. Separate sequential inference
+timings are recorded in the refactoring report and repeated after final tests.

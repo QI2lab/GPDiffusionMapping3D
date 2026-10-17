@@ -27,7 +27,7 @@ def measure(backend: str) -> dict:
     with contextlib.redirect_stdout(io.StringIO()):
         model.analyze(
             data, backend=backend, nIter=1, seed=299,
-            annealing_sweeps=0, adaptation_sweeps=0, burn_in=0, **parameters
+            annealing_sweeps=1, adaptation_sweeps=1, burn_in=0, **parameters
         )
     if backend == "gpu":
         cp.cuda.Device().synchronize()
