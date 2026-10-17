@@ -4,8 +4,9 @@ GitHub scientific CI
 Scientific helpers and standalone validation/benchmark tools live under
 tests/support/; no CI tests depend on a top-level scripts directory.
 
-Scientific CI (.github/workflows/scientific-ci.yml) runs on pushes and pull
-requests. It retains 55 of the 57 scientific cases, split into four parallel
+Scientific CI (.github/workflows/scientific-ci.yml) runs on pull requests and
+pushes to main/master, avoiding duplicate feature-branch push and PR runs.
+It retains 55 of the 57 scientific cases, split into four parallel
 Linux/Python-3.12 jobs:
 
     unit         23 cases: independent mathematical identities and proposals
@@ -35,7 +36,7 @@ re-add the label, and verify both results belong to that revision before
 merging. GitHub's non-draft flag means ready for review; the requester decides
 whether the PR is actually ready to merge.
 
-The shorter Scientific CI workflow still runs automatically on pushes/PRs and
+The shorter Scientific CI workflow runs on PRs and main/master pushes and
 supports workflow_dispatch. Neither workflow has a nightly schedule. To check
 all 57 cases before merging, use the 55 ordinary PR checks plus the explicitly
 requested convergence checks on the same PR revision.

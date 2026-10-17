@@ -59,6 +59,7 @@ uv run --no-sync python -m pytest tests/cpu --strict-markers -q
 
 Keep changes consistent with the physical model and include scientific checks.
 Preserve the original copyright, license and attribution notices.
-The shorter CI suite runs automatically; add `run-convergence` to a non-draft
-PR ready to merge to request full convergence checks. Further validation and
+The shorter CI suite runs on PRs and pushes to `main`/`master`. Add
+`run-convergence` to a non-draft PR ready to merge to request full convergence
+checks. Further validation and
 implementation details are in [`docs/`](docs/).
