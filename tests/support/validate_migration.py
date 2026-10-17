@@ -49,7 +49,7 @@ def main():
                     p: importlib.metadata.version(p)
                     for p in ("numpy", "numba", "scipy", "matplotlib")
                 },
-                "mle_nm2_s": float(
+                "mle_um2_s": float(
                     np.mean(np.sum(steps**2, axis=1)) / (4 * dt)
                 ),
                 "chi_square": float(statistic),

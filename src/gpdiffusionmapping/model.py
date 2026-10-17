@@ -67,7 +67,7 @@ def analyze(
     Parameters
     ----------
     data : types.SimpleNamespace
-        Prepared trajectory observations.
+        Prepared trajectory observations in microns and seconds.
     nIter : int, optional
         Production sweeps. Multiple chains and convergence diagnostics remain
         necessary; the 3D validation used 20000 sweeps per chain.
@@ -98,7 +98,8 @@ def analyze(
     block_size : int, optional
         Number of coordinates in a sequential symmetric block proposal.
     **kwargs
-        Overrides of the existing model parameters.
+        Overrides of the existing model parameters. covL is in microns and
+        covLambda is in micron^2/s.
 
     Returns
     -------

@@ -57,7 +57,7 @@ def main(
     ] = Path("output"),
     scale: Annotated[
         float, typer.Option(
-            help="Multiply input positions by this value to obtain nm."
+            help="Multiply input positions by this value to obtain microns."
         )
     ] = 1.0,
     delta_t: Annotated[

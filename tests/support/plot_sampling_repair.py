@@ -71,8 +71,8 @@ def plot(directory: Path, report: Path, output: Path):
         )
         axes[1, column].set_xlabel("Production sweep (all draws)")
         axes[2, column].set_xlabel("Pooled rank at the central field point")
-    axes[0, 0].set_ylabel("D(0,0,0) (nm²/s)")
-    axes[1, 0].set_ylabel("Running mean D (nm²/s)")
+    axes[0, 0].set_ylabel("D(0,0,0) (µm²/s)")
+    axes[1, 0].set_ylabel("Running mean D (µm²/s)")
     axes[2, 0].set_ylabel("Draws per rank bin, per chain")
     fig.suptitle(
         "Four independent CPU and four CUDA chains per field; fixed blocked MH proposals"

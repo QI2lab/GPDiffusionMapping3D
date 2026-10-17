@@ -37,7 +37,7 @@ def infer_file(
     iterations : int, optional
         Retained production sweeps, after the model's warmup schedule.
     scale : float, optional
-        Conversion of input lengths to nanometers.
+        Conversion of input lengths to microns.
     delta_t : float or None, optional
         Required only for legacy 2D input without timestamps, in seconds.
     particle_col, z_col, y_col, x_col, time_col : str, optional
@@ -131,11 +131,11 @@ def save_results(
         variables.cInduInduInv @ samples[np.argmax(posterior)]
     )
     np.savez_compressed(
-        directory / "inference.npz", samples_nm2_s=samples,
+        directory / "inference.npz", samples_um2_s=samples,
         log_posterior=posterior,
-        inducing_coordinates_nm=variables.induCoordinates,
-        fine_coordinates_nm=variables.fineCoordinates,
-        map_diffusion_nm2_s=map_values,
+        inducing_coordinates_um=variables.induCoordinates,
+        fine_coordinates_um=variables.fineCoordinates,
+        map_diffusion_um2_s=map_values,
     )
     metadata = {
         "dimensions": variables.dimensions,
@@ -143,10 +143,10 @@ def save_results(
         "field": "static spatial diffusion",
         "backend": variables.backend,
         "dtype": str(samples.dtype),
-        "units": {"position": "nm", "time": "s", "diffusion": "nm^2/s"},
+        "units": {"position": "um", "time": "s", "diffusion": "um^2/s"},
         "figure_units": {"position": "um", "diffusion": "um^2/s"},
         "transitions": len(variables.dataCoordinates),
-        "constant_diffusion_mle_nm2_s": float(variables.mle),
+        "constant_diffusion_mle_um2_s": float(variables.mle),
         "sampling": variables.sampling_metadata,
     }
     if hasattr(data, "cell_id"):

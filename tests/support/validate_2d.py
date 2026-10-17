@@ -23,7 +23,7 @@ RECOVERY_TARGET = 0.10
 
 
 def truth(points, feature=False):
-    """Return a positive field defined throughout unbounded space, in nm²/s."""
+    """Return a positive field defined throughout unbounded space, in µm²/s."""
     return 1 + (
         0.4 * np.exp(-np.sum(points**2, axis=1) / 2)
         if feature

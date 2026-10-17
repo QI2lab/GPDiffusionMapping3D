@@ -49,8 +49,8 @@ def plot_traces(directory: Path, output: Path) -> None:
         1.4, color="black", ls="--", label="simulation truth at ZYX=(0,0,0)"
     )
     axes[1].axhline(1.4, color="black", ls="--")
-    axes[0].set_ylabel("D(0,0,0) (nm²/s)")
-    axes[1].set_ylabel("Running mean D (nm²/s)")
+    axes[0].set_ylabel("D(0,0,0) (µm²/s)")
+    axes[1].set_ylabel("Running mean D (µm²/s)")
     axes[2].set(ylabel="Log posterior", xlabel="Production iteration")
     axes[0].legend(loc="upper right")
     fig.suptitle(

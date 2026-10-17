@@ -55,8 +55,8 @@ def plot(directory: Path, report: Path, output: Path) -> None:
         )
         axes[0, column].legend()
         axes[2, column].set_xlabel("Production sweep")
-    axes[0, 0].set_ylabel("D(0,0,0) (nm²/s)")
-    axes[1, 0].set_ylabel("Running mean D (nm²/s)")
+    axes[0, 0].set_ylabel("D(0,0,0) (µm²/s)")
+    axes[1, 0].set_ylabel("Running mean D (µm²/s)")
     axes[2, 0].set_ylabel("Log posterior")
     fig.suptitle(
         "10,000 extra discarded temperature-1 sweeps; fixed proposal widths"

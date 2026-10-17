@@ -20,7 +20,7 @@ SEEDS = (41, 42, 43)
 
 
 def truth(points, feature=False):
-    """Define an unbounded smooth positive 3D diffusion field in nm²/s."""
+    """Define an unbounded smooth positive 3D diffusion field in µm²/s."""
     return 1 + (
         0.4 * np.exp(-np.sum(points**2, axis=1) / 2)
         if feature

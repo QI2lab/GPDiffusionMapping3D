@@ -1,4 +1,20 @@
-Latest test audit: 57 scientific tests passed with zero skips in 1221.90 s.
+Current units: input positions, internal coordinates and output coordinates
+use microns (um); diffusion uses um^2/s and timestamps remain seconds.
+Use --scale 0.001 for nanometer input. Saved NPZ and MLE metadata keys now
+use _um and _um2_s suffixes. Figures no longer apply a second conversion.
+Measurements below retain their historical units and numerical values.
+
+Micron-unit validation (Linux, Python 3.12, CPU float64): 23 unit cases passed
+in 0.90 s; all five file-physics cases passed in 381.24 s with no skips.
+These recover two distinct fields per case from CSV/Parquet, including
+nanometer input converted with scale=0.001, timestamped XY/ZYX, and legacy XY.
+Matplotlib/Pyparsing emitted 228 dependency deprecation warnings.
+Full convergence was not rerun; numerical sampling is unchanged.
+Commands (OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1; MPLBACKEND=Agg for files):
+    uv run --no-sync python -m pytest tests/cpu -m unit --strict-markers -q
+    uv run --no-sync python -m pytest tests/cpu/test_file_physics.py --strict-markers -q --junitxml=validation_artifacts/micron-files.xml --basetemp=validation_artifacts/micron-files
+
+Previous test audit: 57 scientific tests passed with zero skips in 1221.90 s.
 The suite has only unit (23 cases) and integration (34 cases) categories,
 15 test functions and four shared fixtures. Both full four-chain convergence
 gates and all file-input physics gates passed. See test-fixture-audit.txt

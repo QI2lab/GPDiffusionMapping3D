@@ -68,12 +68,12 @@ def validate_file_physics(directory: Path, backend: str, case: str, source=None)
         if overrides:
             frame = frame.rename(columns={
                 "particle_id": "track_id", "cell_id": "cell_label",
-                "z": "z_um", "y": "y_um", "x": "x_um", "timestamp": "time_s",
+                "z": "z_nm", "y": "y_nm", "x": "x_nm", "timestamp": "time_s",
             })
-            frame[["z_um", "y_um", "x_um"]] /= 1000
+            frame[["z_nm", "y_nm", "x_nm"]] *= 1000
             options.update(
-                particle_col="track_id", cell_col="cell_label", z_col="z_um",
-                y_col="y_um", x_col="x_um", time_col="time_s", scale=1000,
+                particle_col="track_id", cell_col="cell_label", z_col="z_nm",
+                y_col="y_nm", x_col="x_nm", time_col="time_s", scale=0.001,
             )
         frames.append(frame)
         oracles[cell_id] = diffusion, starts, ends - starts, index
@@ -114,16 +114,16 @@ def validate_file_physics(directory: Path, backend: str, case: str, source=None)
         )
         bound = 128 * np.finfo(float).eps * count
         np.testing.assert_allclose(
-            metadata["constant_diffusion_mle_nm2_s"], source_mle, rtol=bound
+            metadata["constant_diffusion_mle_um2_s"], source_mle, rtol=bound
         )
         lower, upper = stats.chi2.ppf(
             [0.0005, 0.9995], dimensions * count
         ) / (dimensions * count)
         assert lower < source_mle / diffusion < upper
         with np.load(output / "inference.npz") as trace:
-            coords = trace["inducing_coordinates_nm"]
+            coords = trace["inducing_coordinates_um"]
             posterior = trace["log_posterior"]
-            inducing = trace["samples_nm2_s"][np.argmax(posterior)]
+            inducing = trace["samples_um2_s"][np.argmax(posterior)]
         covariance = 0.25 * np.exp(
             -np.sum((coords[:, None] - coords[None])**2, axis=2) / 4.5
         )

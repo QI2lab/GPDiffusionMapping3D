@@ -1,5 +1,8 @@
 HISTORICAL STAGE 5 NUMERICAL REFACTORING
 
+Current inference uses microns and um^2/s throughout, including saved arrays
+and figures. The nanometer conventions below describe historical validation.
+
 The GPU implementation described below was subsequently removed after the
 user's performance review. Current CPU-only installation, rationale and
 validation are recorded in cpu-only-decision.txt. GPU commands below refer

@@ -42,7 +42,7 @@ def plot(variables, dVect, pVect, data, z_slice=None):
 
     # Reshape variables for plotting
     shape = (nFineX, nFineY)
-    shapedMap = np.reshape(unshapedMap, shape) / 1e6  # Convert to micron^2/s
+    shapedMap = np.reshape(unshapedMap, shape)
     shapedX = np.reshape(fineCoordinates[:, 0], shape)
     shapedY = np.reshape(fineCoordinates[:, 1], shape)
 
@@ -54,11 +54,11 @@ def plot(variables, dVect, pVect, data, z_slice=None):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     ax.plot_surface(
-        shapedX / 1000, shapedY / 1000, shapedMap, cmap=cm.coolwarm, norm=norm
+        shapedX, shapedY, shapedMap, cmap=cm.coolwarm, norm=norm
     )
     ax.scatter(
-        trajectories[:, 0] / 1000,
-        trajectories[:, 1] / 1000,
+        trajectories[:, 0],
+        trajectories[:, 1],
         np.zeros_like(trajectories[:, 0]),
         color="green",
         alpha=0.01,
@@ -83,7 +83,7 @@ def plot(variables, dVect, pVect, data, z_slice=None):
 
 
 def plot_xy_slice(variables, samples, posterior, z_slice=None):
-    """Plot a simple XY diffusion slice at the nearest grid Z, in µm²/s."""
+    """Plot XY diffusion in µm²/s at the nearest z_slice, specified in µm."""
     coordinates = variables.fineCoordinates
     levels = np.unique(coordinates[:, 0])
     requested = np.median(levels) if z_slice is None else z_slice
@@ -93,12 +93,12 @@ def plot_xy_slice(variables, samples, posterior, z_slice=None):
         variables.cInduFine[:, mask].T
         @ variables.cInduInduInv
         @ samples[np.argmax(posterior)]
-    ) / 1e6
+    )
     shape = (variables.nFineY, variables.nFineX)
     fig, ax = plt.subplots()
     image = ax.pcolormesh(
-        coordinates[mask, 2].reshape(shape) / 1000,
-        coordinates[mask, 1].reshape(shape) / 1000,
+        coordinates[mask, 2].reshape(shape),
+        coordinates[mask, 1].reshape(shape),
         values.reshape(shape),
         shading="auto",
         cmap="coolwarm",
@@ -106,7 +106,7 @@ def plot_xy_slice(variables, samples, posterior, z_slice=None):
     ax.set(
         xlabel="X (µm)",
         ylabel="Y (µm)",
-        title=f"Diffusion at Z = {selected / 1000:g} µm",
+        title=f"Diffusion at Z = {selected:g} µm",
     )
     fig.colorbar(image, ax=ax, label="Diffusion coefficient (µm²/s)")
     return fig

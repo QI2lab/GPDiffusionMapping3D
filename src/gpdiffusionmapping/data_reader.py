@@ -26,7 +26,7 @@ def data_reader(path, scale=1, deltaT=1 / 30):
 
     Args:
         path (str): Path to the CSV file.
-        scale (float): Scaling factor to transform data to nm. Defaults to 1.
+        scale (float): Scaling factor to transform data to microns. Defaults to 1.
         deltaT (float): Time interval between each frame of data. Defaults to 1/30.
 
     Returns:
@@ -40,7 +40,7 @@ def data_reader(path, scale=1, deltaT=1 / 30):
     dataVectIndex = data[:, 0]
     dataVect = data[:, 1:]
 
-    # Localization adjustment to nanometers
+    # Localization adjustment to microns
     dataVect = dataVect[::] * scale
     dataVectIndex = dataVectIndex[::]
 
@@ -70,7 +70,7 @@ def prepare_tracks(particles, positions, timestamps, scale=1):
     timestamps : array-like
         Numeric observation times in seconds.
     scale : float
-        Positive conversion from input length units to nanometers.
+        Positive conversion from input length units to microns.
 
     Returns
     -------
@@ -220,7 +220,7 @@ def prepare_table_tracks(
     particle_col, z_col, y_col, x_col, time_col : str, optional
         Exact names of the corresponding columns.
     scale : float, optional
-        Positive conversion from input position units to nanometers.
+        Positive conversion from input position units to microns.
     delta_t : float or None, optional
         Explicit positive elapsed seconds for legacy 2D input without times.
 
@@ -285,7 +285,7 @@ def read_tracks(path, **column_options):
     Returns
     -------
     types.SimpleNamespace
-        Prepared within-particle transitions in nanometers and seconds.
+        Prepared within-particle transitions in microns and seconds.
     """
     table = read_track_table(
         path, particle_col=column_options.get("particle_col", "particle_id")
