@@ -142,7 +142,7 @@ def validate(
                 data,
                 nIter=5000,
                 backend=backend,
-                seed=(101 if backend == "cpu" else 201) + index,
+                seed=101 + index,
                 annealing_sweeps=500,
                 adaptation_sweeps=4000,
                 burn_in=1000,
@@ -190,7 +190,7 @@ def validate_block_step(backend, seed):
     v.temperature = 2.0
 
     def host(value):
-        return value.get() if backend == "gpu" else np.array(value, copy=True)
+        return np.array(value, copy=True)
 
     old = host(v.dIndu)
     directions = host(v.block_directions)

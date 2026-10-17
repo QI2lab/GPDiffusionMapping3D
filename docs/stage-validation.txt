@@ -1,4 +1,12 @@
 CURRENT STATUS
+CPU-only float64; the complete suite passed 48 tests with zero skips, including
+both full four-chain convergence cases. This follows the user's performance review after Stages 0–5
+completed at revision 39c7eeb. See cpu-only-decision.txt for the simplification
+and current scientific validation. GPU commands in this timeline apply to the
+historical implementation. The dated findings below include failed intermediate
+experiments; see RESULTS.txt for the final pre-removal measurements.
+
+HISTORICAL INTERMEDIATE STATUS (SUPERSEDED BY LATER ENTRIES)
 Stages 0-3 passed; float32 was rejected and float64 retained. Stage 4
 mathematical/physical recovery checks pass, but independent-chain convergence
 remains unresolved. Stage 5 has not started. The 5,000-production-sweep smooth

@@ -68,12 +68,12 @@ def analyze(
     nIter : int, optional
         Production sweeps. Multiple chains and convergence diagnostics remain
         necessary; the 3D validation used 20000 sweeps per chain.
-    backend : {"cpu", "gpu"}, optional
-        Explicit numerical backend. A requested GPU must be available.
+    backend : {"cpu"}, optional
+        Retained for existing CPU callers; other values are rejected.
     seed : int or None, optional
         Sampler random seed.
-    dtype : {"float64", "float32"}, optional
-        Numerical precision. Only float64 passed scientific validation.
+    dtype : {"float64"}, optional
+        Validated numerical precision.
     burn_in : int or None, optional
         Additional discarded temperature-one sweeps after adaptation, with
         fixed widths. Defaults to 1000 for blocked proposals, else zero.
@@ -143,15 +143,10 @@ def analyze(
     if nIter == 0:
         raise ValueError("Production sweeps must be positive")
 
-    if dtype == "float32":
-        import warnings
-
-        warnings.warn(
-            "GPU float32 is experimental and failed acceptance-ratio "
-            "validation; use float64 for inference",
-            RuntimeWarning,
-            stacklevel=2,
-        )
+    if backend != "cpu":
+        raise ValueError("Only CPU execution is supported")
+    if dtype != "float64":
+        raise ValueError("Only float64 precision is supported")
 
     # Progress Marker
     print("Initialization Started")
@@ -172,20 +167,15 @@ def analyze(
     )
     variables.proposal = proposal
     if initial_inducing is not None:
-        xp = np
-        if backend == "gpu":
-            import cupy as cp
-
-            xp = cp
-        initial = xp.asarray(initial_inducing, dtype=dtype)
+        initial = np.asarray(initial_inducing, dtype=dtype)
         if initial.shape != variables.dIndu.shape or not bool(
-            xp.all(xp.isfinite(initial))
+            np.all(np.isfinite(initial))
         ):
             raise ValueError(
                 "Initial inducing field must match the finite grid"
             )
         field = variables.cDataIndu @ initial
-        if bool(xp.any(initial <= 0)) or bool(xp.any(field <= 0)):
+        if bool(np.any(initial <= 0)) or bool(np.any(field <= 0)):
             raise ValueError(
                 "Initial inducing and observed diffusion must be positive"
             )
@@ -195,9 +185,8 @@ def analyze(
             functions.log_likelihood(
                 field,
                 variables.a,
-                xp.asarray(variables.delta_t),
+                np.asarray(variables.delta_t),
                 variables.dimensions,
-                xp,
             )
             + functions.log_prior(
                 initial, variables.priorMean, variables.cInduInduInv
@@ -223,7 +212,7 @@ def analyze(
     )
 
     def host_array(value):
-        return value.get() if backend == "gpu" else np.array(value, copy=True)
+        return np.array(value, copy=True)
 
     initial_inducing = host_array(variables.dIndu)
     initial_alpha = host_array(variables.cInduInduInv @ variables.dIndu)
@@ -232,7 +221,7 @@ def analyze(
         variables.proposal_stats[:] = 0
 
     map_variables, dVect, pVect, production_acceptance = run_production(
-        variables, data, nIter, backend
+        variables, data, nIter
     )
 
     endTime = time.time()
@@ -270,7 +259,6 @@ def analyze(
             ]
         )
 
-    return_arrays_to_host(map_variables, backend)
     return map_variables, dVect, pVect
 
 
@@ -381,7 +369,7 @@ def run_warmup(
     return warmup_trace
 
 
-def run_production(variables, data, nIter, backend):
+def run_production(variables, data, nIter):
     """Retain every production draw and collect the highest-posterior state."""
     production_acceptance = np.zeros(variables.nProposals)
     ## MCMC SAMPLING ##
@@ -402,9 +390,7 @@ def run_production(variables, data, nIter, backend):
         production_acceptance += accCount
 
         # Save the sample
-        dVect[i] = (
-            variables.dIndu.get() if backend == "gpu" else variables.dIndu
-        )
+        dVect[i] = variables.dIndu
         pVect[i] = variables.P
         if variables.P >= map_variables.P:
             map_variables = copy.deepcopy(variables)
@@ -412,27 +398,3 @@ def run_production(variables, data, nIter, backend):
         print(f"({time.time() - t:.3f}s)")
 
     return map_variables, dVect, pVect, production_acceptance
-
-
-def return_arrays_to_host(map_variables, backend):
-    """Synchronize CUDA and return arrays in physical coordinates."""
-    if backend == "gpu":
-        import cupy as cp
-
-        cp.cuda.Device().synchronize()
-        for key, value in vars(map_variables).items():
-            if isinstance(value, cp.ndarray):
-                setattr(map_variables, key, cp.asnumpy(value))
-        for key in (
-            "dataCoordinates",
-            "sampleCoordinates",
-            "induCoordinates",
-            "fineCoordinates",
-        ):
-            setattr(
-                map_variables,
-                key,
-                getattr(map_variables, key) + map_variables.coordinate_origin,
-            )
-        map_variables.coordinate_origin = np.zeros(map_variables.dimensions)
-

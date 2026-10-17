@@ -1,4 +1,4 @@
-"""Plot real simulated-field chain diagnostics without changing any gate."""
+"""Plot historical CPU/GPU trace archives; no CUDA execution is performed."""
 
 import argparse
 from pathlib import Path

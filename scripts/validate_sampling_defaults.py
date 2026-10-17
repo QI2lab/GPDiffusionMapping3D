@@ -1,4 +1,4 @@
-"""Measure and physically validate repaired 3D defaults on each backend."""
+"""Measure and physically validate the repaired 3D CPU defaults."""
 
 import contextlib
 import io
@@ -19,27 +19,19 @@ def measure(backend: str) -> dict:
     """Check recovery and densities, timing one warmed inference at a time."""
     data = prepared(feature=True)
     parameters = dict(nFineX=5, nFineY=5, nFineZ=5, covLambda=0.5, covL=1.5)
-    if backend == "gpu":
-        import cupy as cp
-
-        cp.cuda.Device().use()
     started = time.perf_counter()
     with contextlib.redirect_stdout(io.StringIO()):
         model.analyze(
             data, backend=backend, nIter=1, seed=299,
             annealing_sweeps=1, adaptation_sweeps=1, burn_in=0, **parameters
         )
-    if backend == "gpu":
-        cp.cuda.Device().synchronize()
     warmup_seconds = time.perf_counter() - started
     started = time.perf_counter()
     with contextlib.redirect_stdout(io.StringIO()):
         v, draws, posterior = model.analyze(
-            data, backend=backend, seed=301 if backend == "cpu" else 401,
+            data, backend=backend, seed=301,
             **parameters
         )
-    if backend == "gpu":
-        cp.cuda.Device().synchronize()
     seconds = time.perf_counter() - started
     coordinates = v.induCoordinates
     covariance = 0.25 * np.exp(
@@ -88,10 +80,7 @@ def measure(backend: str) -> dict:
         backend=backend, dtype="float64", production_sweeps=len(draws),
         warmup_seconds=warmup_seconds, full_inference_seconds=seconds,
         map_rms=rms, full_density_max_error=maximum_error,
-        device=cp.cuda.runtime.getDeviceProperties(0)["name"].decode()
-        if backend == "gpu" else "CPU",
-        gpu_pool_bytes=cp.get_default_memory_pool().total_bytes()
-        if backend == "gpu" else 0,
+        device="CPU",
         schedule={key: v.sampling_metadata[key] for key in (
             "annealing_sweeps", "stabilization_sweeps",
             "discarded_fixed_width_sweeps", "production_sweeps",
@@ -111,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     results = []
-    for backend in ("cpu", "gpu"):
+    for backend in ("cpu",):
         result = measure(backend)
         results.append(result)
         print(json.dumps(result), flush=True)

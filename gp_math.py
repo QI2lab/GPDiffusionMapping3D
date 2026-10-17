@@ -3,21 +3,16 @@
 import numba as nb
 import numpy as np
 
-_proposal_reduction = None
-_proposal_reduction32 = None
-
 
 def expCooling(iteration, initialTemp, coolRate):
     """Evaluate the existing exponential annealing schedule."""
     return initialTemp * np.exp(-coolRate * iteration)
 
 
-
 @nb.njit(cache=True)
 def logNormpdf(diff, sigma):
     """Evaluate the original unnormalized scalar Gaussian log density."""
     return -np.log(np.abs(sigma)) - 0.5 * (diff / sigma) ** 2
-
 
 
 @nb.njit(cache=True)
@@ -28,7 +23,6 @@ def indexShuffler(length):
         j = int(np.random.random() * (length - i)) + i
         indices[i], indices[j] = indices[j], indices[i]
     return indices
-
 
 
 @nb.njit(cache=True)
@@ -64,34 +58,15 @@ def covMat(coordinates1, coordinates2, covLambda, covL):
     return C
 
 
-
-def covMat_gpu(coordinates1, coordinates2, covLambda, covL):
-    """Evaluate the existing spatial RBF on CUDA using CuPy built-ins."""
-    import cupy as cp
-
-    squared = cp.zeros(
-        (len(coordinates1), len(coordinates2)), dtype=coordinates1.dtype
-    )
-    for axis in range(coordinates1.shape[1]):
-        squared += (
-            coordinates1[:, axis, None] - coordinates2[None, :, axis]
-        ) ** 2
-    return covLambda**2 * cp.exp(-0.5 * squared / covL**2)
-
-
-
-def log_likelihood(diffusion, a, delta_t, dimensions=2, xp=np):
+def log_likelihood(diffusion, a, delta_t, dimensions=2):
     """Evaluate the full Gaussian transition density, including constants."""
-    if diffusion.dtype == np.dtype("float32"):
-        delta_t = xp.asarray(delta_t, dtype=diffusion.dtype)
-    if bool(xp.any(diffusion <= 0)):
-        return -xp.inf
-    return -xp.sum(
-        dimensions / 2 * xp.log(diffusion)
+    if bool(np.any(diffusion <= 0)):
+        return -np.inf
+    return -np.sum(
+        dimensions / 2 * np.log(diffusion)
         + a / diffusion
-        + dimensions / 2 * xp.log(4 * xp.pi * delta_t)
+        + dimensions / 2 * np.log(4 * np.pi * delta_t)
     )
-
 
 
 def log_prior(diffusion, mean, inverse):
@@ -100,15 +75,13 @@ def log_prior(diffusion, mean, inverse):
     return -0.5 * (difference @ (inverse @ difference))
 
 
-
-def likelihood_difference(old, new, a, dimensions=2, xp=np):
+def likelihood_difference(old, new, a, dimensions=2):
     """Evaluate a proposal ratio without subtracting total densities."""
-    if bool(xp.any(new <= 0)):
-        return -xp.inf
-    return xp.sum(
-        -dimensions / 2 * xp.log(new / old) - a * (1 / new - 1 / old)
+    if bool(np.any(new <= 0)):
+        return -np.inf
+    return np.sum(
+        -dimensions / 2 * np.log(new / old) - a * (1 / new - 1 / old)
     )
-
 
 
 def proposal_log_ratio(change, scale, old, new):
@@ -120,47 +93,7 @@ def proposal_log_ratio(change, scale, old, new):
     )
 
 
-
-def gpu_likelihood_difference(old, column, change, a, dimensions=2):
-    """Fuse the measured proposal likelihood and positivity reduction."""
-    import cupy as cp
-
-    global _proposal_reduction, _proposal_reduction32
-    if old.dtype == cp.float32:
-        if _proposal_reduction32 is None:
-            _proposal_reduction32 = cp.ReductionKernel(
-                "float32 old, float32 column, float32 change, "
-                "float32 a, float32 half_dimension",
-                "float32 result",
-                "old + column * change > 0 ? "
-                "-half_dimension * logf((old + column * change) / old) "
-                "-a * (1.0f / (old + column * change) - 1.0f / old) "
-                ": -(1.0f/0.0f)",
-                "a + b",
-                "result = a",
-                "0",
-                "gpd_proposal_float32_spatial",
-            )
-        return _proposal_reduction32(old, column, change, a, dimensions / 2)
-    if _proposal_reduction is None:
-        _proposal_reduction = cp.ReductionKernel(
-            "float64 old, float64 column, float64 change, "
-            "float64 a, float64 half_dimension",
-            "float64 result",
-            "old + column * change > 0 ? "
-            "-half_dimension * log((old + column * change) / old) "
-            "-a * (1.0 / (old + column * change) - 1.0 / old) : -(1.0/0.0)",
-            "a + b",
-            "result = a",
-            "0",
-            "gpd_proposal_float64_spatial",
-        )
-    return _proposal_reduction(old, column, change, a, dimensions / 2)
-
-
-
 @nb.njit(cache=True)
 def seed_sampler(seed):
     """Set the CPU sampler RNG for independently seeded inference runs."""
     np.random.seed(seed)
-

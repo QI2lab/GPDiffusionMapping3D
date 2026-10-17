@@ -26,7 +26,7 @@ def run_chain(
     """Run one independent chain, preserving logs, all draws and warmup history."""
     directory = Path(directory)
     seed = (
-        (301 if backend == "cpu" else 401) + index + (1000 if heldout else 0)
+        301 + index + (1000 if heldout else 0)
     )
     data_seed = (43 if feature else 42) if heldout else 41
     data = prepared(
@@ -45,18 +45,7 @@ def run_chain(
         "covLambda": 0.5,
         "covL": 1.5,
     }
-    if backend == "gpu":
-        import cupy as cp
-
-        cp.cuda.Device(index % min(2, cp.cuda.runtime.getDeviceCount())).use()
-        probe = (cp.arange(32, dtype=cp.float64) ** 2).sum()
-        cp.cuda.Device().synchronize()
-        assert float(probe) == 10416
-        device = cp.cuda.runtime.getDeviceProperties(cp.cuda.Device().id)[
-            "name"
-        ].decode()
-    else:
-        device = "CPU"
+    device = "CPU"
     with contextlib.redirect_stdout(io.StringIO()):
         initial = f.initialization({**model.PARAMETERS, **parameters}, data)
     rng = np.random.default_rng(seed + 10000)
@@ -153,9 +142,6 @@ def run_chain(
         ),
         "width_min": float(v.sampling_metadata["epsilon"].min()),
         "width_max": float(v.sampling_metadata["epsilon"].max()),
-        "gpu_pool_bytes": cp.get_default_memory_pool().total_bytes()
-        if backend == "gpu"
-        else 0,
     }
     prefix.with_suffix(".json").write_text(json.dumps(result, indent=2) + "\n")
     return result
@@ -165,7 +151,7 @@ def summarize(directory, count, pilot):
     """Apply unchanged scientific criteria to all field/coefficient quantities."""
     results = {}
     observation_weights = None
-    for backend in ("cpu", "gpu"):
+    for backend in ("cpu",):
         chains = []
         individuals = []
         for index in range(count):
@@ -300,26 +286,6 @@ def summarize(directory, count, pilot):
                 )
             ),
         }
-    # Agreement uses means from independently initialized chains, not paired draws.
-    groups = []
-    errors = []
-    for backend in ("cpu", "gpu"):
-        arrays = np.stack(
-            [
-                np.load(directory / f"{backend}-{i}.npz")["projected"]
-                for i in range(count)
-            ]
-        )
-        groups.append(arrays.mean(axis=(0, 1)))
-        errors.append(diagnose(arrays)["mean_mcse"])
-    difference = abs(groups[0] - groups[1])
-    bound = stats.t.ppf(1 - 0.01 / (2 * 27), df=count - 1) * np.hypot(*errors)
-    results["backend_agreement"] = {
-        "difference": difference.tolist(),
-        "bound": bound.tolist(),
-        "nominal_pass": bool(np.all(difference < bound)),
-        "qualification": "Only meaningful after both backends converge",
-    }
     return results
 
 
@@ -329,7 +295,7 @@ def main():
         "--proposal", choices=("additive", "blocked"), required=True
     )
     parser.add_argument("--pilot", action="store_true")
-    parser.add_argument("--block-size", type=int, default=16)
+    parser.add_argument("--block-size", type=int, default=8)
     parser.add_argument("--heldout", action="store_true")
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -352,11 +318,11 @@ def main():
                     args.heldout,
                     args.block_size,
                 )
-                for backend in ("cpu", "gpu")
+                for backend in ("cpu",)
                 for index in range(count)
             )
         with ProcessPoolExecutor(
-            max_workers=8, mp_context=multiprocessing.get_context("spawn")
+            max_workers=4, mp_context=multiprocessing.get_context("spawn")
         ) as pool:
             for future in as_completed(
                 [pool.submit(run_chain, *task) for task in tasks]
@@ -378,7 +344,7 @@ def main():
         "block_size": args.block_size,
         "pilot": args.pilot,
         "heldout": args.heldout,
-        "chains_per_backend": count,
+        "chains": count,
         "checkpoints": [1000] if args.pilot else [5000, 10000, 20000],
         "cases": cases,
     }
@@ -386,8 +352,6 @@ def main():
     print(f"Wrote {args.output}", flush=True)
     if not args.pilot and not all(
         case["cpu"]["scientific_pass"]
-        and case["gpu"]["scientific_pass"]
-        and case["backend_agreement"]["nominal_pass"]
         for case in results["cases"].values()
     ):
         raise SystemExit(

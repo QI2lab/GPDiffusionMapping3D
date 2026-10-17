@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import numba as nb
 import numpy as np
 
-from gp_math import covMat, covMat_gpu, log_likelihood, log_prior
+from gp_math import covMat, log_likelihood, log_prior
 
 
 def initialization(variables, data, backend="cpu", dtype="float64"):
@@ -17,10 +17,10 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
         Existing grid, covariance and regularization parameters.
     data : types.SimpleNamespace
         Prepared XY or ZYX observations with positive elapsed seconds.
-    backend : {"cpu", "gpu"}, optional
-        Explicit execution hardware. CUDA errors propagate.
-    dtype : {"float64", "float32"}, optional
-        CPU requires float64; GPU float32 remains diagnostic only.
+    backend : {"cpu"}, optional
+        Retained for existing CPU callers; other values are rejected.
+    dtype : {"float64"}, optional
+        Validated numerical precision.
 
     Returns
     -------
@@ -28,20 +28,10 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
         Coordinates, fixed GP matrices and the initial diffusion values.
     """
 
-    if backend not in ("cpu", "gpu"):
-        raise ValueError("backend must be cpu or gpu")
-    if dtype not in ("float64", "float32") or (
-        backend == "cpu" and dtype != "float64"
-    ):
-        raise ValueError(
-            "CPU requires float64; GPU evaluation supports float64 or float32"
-        )
-    xp = np
-    if backend == "gpu":
-        import cupy as cp
-
-        cp.cuda.Device().use()
-        xp = cp
+    if backend != "cpu":
+        raise ValueError("Only CPU execution is supported")
+    if dtype != "float64":
+        raise ValueError("Only float64 precision is supported")
 
     # Declare variables as instance of SimpleNamespace
     variables = SimpleNamespace(**variables)
@@ -85,61 +75,37 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
     dIndu = mle * np.ones(nIndu)
     priorMean = dIndu.copy()
 
-    diff64 = sampleCoordinates - dataCoordinates
-    variables.coordinate_origin = np.zeros(dimensions)
-    if dtype == "float32":
-        origin = dataCoordinates.min(axis=0)
-        variables.coordinate_origin = origin
-        dataCoordinates = dataCoordinates - origin
-        sampleCoordinates = sampleCoordinates - origin
-        induCoordinates = induCoordinates - origin
-        fineCoordinates = fineCoordinates - origin
-
-    # Transfer numerical arrays once; retain proposal work on the device.
-    if backend == "gpu":
-        dataCoordinates = xp.asarray(dataCoordinates, dtype=dtype)
-        sampleCoordinates = xp.asarray(sampleCoordinates, dtype=dtype)
-        induCoordinates = xp.asarray(induCoordinates, dtype=dtype)
-        fineCoordinates = xp.asarray(fineCoordinates, dtype=dtype)
-        dIndu = xp.asarray(dIndu, dtype=dtype)
-        priorMean = xp.asarray(priorMean, dtype=dtype)
-    kernel = covMat if backend == "cpu" else covMat_gpu
-
     (
         cInduIndu, cInduData, cInduFine, cProposal,
         cInduInduInv, cDataIndu, cInduInduChol,
     ) = construct_covariances(
         induCoordinates, dataCoordinates, fineCoordinates, covLambda, covL,
-        epsilon, kernel, xp, dtype,
+        epsilon,
     )
 
     # Determine the mle at each individual data point
-    a = xp.asarray(np.sum(diff64 * diff64, axis=1) / (4 * deltaT), dtype=dtype)
+    a = np.asarray(np.sum(diff * diff, axis=1) / (4 * deltaT), dtype=dtype)
     dMleData = a * (2 / dimensions)
 
 
-    if backend == "cpu":
-        dIndu, dData = smooth_initial_cpu(
-            induCoordinates,
-            dataCoordinates,
-            covLambda,
-            covL,
-            dMleData,
-            dIndu,
-            nIndu,
-            cDataIndu,
-        )
-    else:
-        dIndu = (cInduData @ dMleData) / xp.sum(cInduData, axis=1)
-        dData = cDataIndu @ dIndu
-    if bool(xp.any(dData <= 0)) or bool(xp.any(dIndu <= 0)):
+    dIndu, dData = smooth_initial_cpu(
+        induCoordinates,
+        dataCoordinates,
+        covLambda,
+        covL,
+        dMleData,
+        dIndu,
+        nIndu,
+        cDataIndu,
+    )
+    if bool(np.any(dData <= 0)) or bool(np.any(dIndu <= 0)):
         raise ValueError(
             "Initialization requires positive inducing and "
             "interpolated diffusion"
         )
     P = float(
         log_likelihood(
-            dData, a, xp.asarray(deltaT, dtype=dtype), dimensions, xp
+            dData, a, np.asarray(deltaT, dtype=dtype), dimensions
         )
         + log_prior(dIndu, priorMean, cInduInduInv)
     )
@@ -229,20 +195,20 @@ def spatial_grids(trajectories, variables, dimensions):
 
 def construct_covariances(
     induCoordinates, dataCoordinates, fineCoordinates, covLambda, covL,
-    epsilon, kernel, xp, dtype,
+    epsilon,
 ):
     """Construct regularized covariance and interpolation matrices."""
     nIndu = len(induCoordinates)
     # Determine Covariance matrices
-    cInduIndu = kernel(induCoordinates, induCoordinates, covLambda, covL)
-    cInduData = kernel(induCoordinates, dataCoordinates, covLambda, covL)
-    cInduFine = kernel(induCoordinates, fineCoordinates, covLambda, covL)
-    cProposal = cInduIndu + epsilon * xp.mean(cInduIndu) * xp.eye(
-        nIndu, dtype=dtype
+    cInduIndu = covMat(induCoordinates, induCoordinates, covLambda, covL)
+    cInduData = covMat(induCoordinates, dataCoordinates, covLambda, covL)
+    cInduFine = covMat(induCoordinates, fineCoordinates, covLambda, covL)
+    cProposal = cInduIndu + epsilon * np.mean(cInduIndu) * np.eye(
+        nIndu, dtype=np.float64
     )
-    cInduInduInv = xp.linalg.inv(cProposal)
+    cInduInduInv = np.linalg.inv(cProposal)
     cDataIndu = cInduData.T @ cInduInduInv
-    cInduInduChol = xp.linalg.cholesky(cProposal)
+    cInduInduChol = np.linalg.cholesky(cProposal)
 
     return (
         cInduIndu, cInduData, cInduFine, cProposal,
@@ -278,4 +244,3 @@ def smooth_initial_cpu(
     dData = cDataIndu @ dIndu
 
     return dIndu, dData
-

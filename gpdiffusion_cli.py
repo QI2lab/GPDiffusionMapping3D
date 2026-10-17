@@ -17,20 +17,6 @@ class Dimensions(str, Enum):
     three = "3"
 
 
-class Backend(str, Enum):
-    """Explicit numerical execution hardware."""
-
-    cpu = "cpu"
-    gpu = "gpu"
-
-
-class Precision(str, Enum):
-    """Precision choices; only float64 passed the scientific gates."""
-
-    float64 = "float64"
-    float32 = "float32"
-
-
 app = typer.Typer(add_completion=False, pretty_exceptions_enable=False)
 
 
@@ -43,14 +29,6 @@ def main(
     dimensions: Annotated[
         Dimensions, typer.Option(help="Spatial dimensions.")
     ] = Dimensions.three,
-    backend: Annotated[
-        Backend, typer.Option(help="Execution hardware; no fallback.")
-    ] = Backend.gpu,
-    dtype: Annotated[
-        Precision, typer.Option(
-            help="Only float64 is scientifically validated."
-        )
-    ] = Precision.float64,
     particle_col: Annotated[
         str, typer.Option(help="Exact particle identity column.")
     ] = "particle #",
@@ -87,13 +65,12 @@ def main(
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
         typer.echo(
-            f"Inferring {dimensions.value}D diffusion on {backend.value}"
+            f"Inferring {dimensions.value}D diffusion on CPU (float64)"
         )
         with (output_dir / "sampling.log").open("w") as log:
             with contextlib.redirect_stdout(log):
                 data, variables, samples, posterior = infer_file(
                     tracks, dimensions=int(dimensions.value),
-                    backend=backend.value, dtype=dtype.value,
                     iterations=iterations, scale=scale, delta_t=delta_t,
                     particle_col=particle_col, z_col=z_col, y_col=y_col,
                     x_col=x_col, time_col=time_col,

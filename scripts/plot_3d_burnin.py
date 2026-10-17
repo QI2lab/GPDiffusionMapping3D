@@ -1,4 +1,4 @@
-"""Plot matched uniform/smooth production traces after extended burn-in."""
+"""Plot historical CPU/GPU burn-in archives; no CUDA execution is performed."""
 
 import argparse
 import json

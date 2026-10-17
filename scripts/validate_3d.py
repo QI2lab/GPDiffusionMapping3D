@@ -116,10 +116,6 @@ def recovery(
         irregular=irregular,
         substeps=substeps,
     )
-    if backend == "gpu":
-        import cupy as cp
-
-        cp.cuda.Device().synchronize()
     start = time.perf_counter()
     with (
         contextlib.redirect_stdout(io.StringIO())
@@ -143,8 +139,6 @@ def recovery(
             covLambda=0.5,
             covL=1.5,
         )
-    if backend == "gpu":
-        cp.cuda.Device().synchronize()
     points = np.array(
         [
             (z, y, x)
@@ -193,9 +187,6 @@ def recovery(
         posterior_mean=projected.mean(axis=0).tolist(),
         mc_se=mc_se.tolist(),
         sampling=sampling_diagnostics(projected),
-        gpu_pool_bytes=cp.get_default_memory_pool().total_bytes()
-        if backend == "gpu"
-        else 0,
     )
 
 
@@ -235,7 +226,7 @@ if __name__ == "__main__":
     import json
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--backend", choices=("cpu", "gpu"), default="cpu")
+    parser.add_argument("--backend", choices=("cpu",), default="cpu")
     parser.add_argument("--output", required=True)
     parser.add_argument("--iterations", type=int, default=100)
     args = parser.parse_args()

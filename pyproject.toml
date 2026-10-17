@@ -19,18 +19,14 @@ dependencies = [
     "pyarrow>=19",
 ]
 
-[project.optional-dependencies]
-gpu = ["cupy-cuda12x[ctk]>=14.1.1; sys_platform == 'linux' or sys_platform == 'win32'"]
-
 [project.scripts]
 gpdiffusion-map = "gpdiffusion_cli:app"
 
 [dependency-groups]
 dev = ["pytest>=8"]
-gpu = ["gpdiffusionmapping[gpu]; sys_platform == 'linux' or sys_platform == 'win32'"]
 
 [tool.uv]
-default-groups = ["gpu"]
+default-groups = []
 
 [tool.setuptools]
 py-modules = [
@@ -40,10 +36,9 @@ py-modules = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/cpu", "tests/gpu"]
+testpaths = ["tests/cpu"]
 markers = [
     "cpu: scientific calculations on the CPU",
-    "gpu: scientific calculations on actual CUDA hardware",
     "unit: independent mathematical identities",
     "integration: independently simulated physical behavior and inference",
 ]

@@ -1,4 +1,4 @@
-"""Summarize saved physical-chain traces with the unchanged agreement rule."""
+"""Summarize historical CPU/GPU archives using their original agreement rule."""
 
 import argparse
 import json

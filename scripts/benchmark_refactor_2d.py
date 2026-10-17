@@ -18,20 +18,15 @@ def density_and_memory(backend: str) -> dict:
     data = simulate(100000, 41, True)
     with contextlib.redirect_stdout(io.StringIO()):
         v = f.initialization(parameters(), data, backend=backend)
-    xp = np
-    if backend == "gpu":
-        import cupy as cp
-
-        xp = cp
-    field = v.dData.get() if backend == "gpu" else v.dData
+    field = v.dData
     direct = stats.norm.logpdf(
         data.trajectories[1::2] - data.trajectories[::2],
         scale=np.sqrt(2 * field[:, None] * data.deltaT),
     ).sum()
     calculated = float(f.log_likelihood(
-        v.dData, v.a, xp.asarray(data.deltaT), 2, xp
+        v.dData, v.a, np.asarray(data.deltaT), 2
     ))
-    covariance = v.cProposal.get() if backend == "gpu" else v.cProposal
+    covariance = v.cProposal
     bound = (
         128 * np.finfo(float).eps * np.linalg.cond(covariance)
         * max(1, abs(direct))
@@ -39,10 +34,8 @@ def density_and_memory(backend: str) -> dict:
     assert abs(calculated - direct) < bound
     live = sum(
         value.nbytes for value in vars(v).values()
-        if isinstance(value, xp.ndarray)
+        if isinstance(value, np.ndarray)
     )
-    if backend == "gpu":
-        cp.cuda.Device().synchronize()
     return dict(
         kind="density_and_memory", count=100000, backend=backend,
         gaussian_error=float(abs(calculated - direct)),
@@ -51,9 +44,9 @@ def density_and_memory(backend: str) -> dict:
 
 
 def main(output: Path):
-    """Warm each backend and record the same representative inference settings."""
+    """Warm CPU inference and record representative physical workloads."""
     results = []
-    for backend in ("cpu", "gpu"):
+    for backend in ("cpu",):
         results.append(density_and_memory(backend))
         for count in (1000, 100000):
             results.append(dict(kind="benchmark", **benchmark(count, backend)))

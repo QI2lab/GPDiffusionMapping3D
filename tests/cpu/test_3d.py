@@ -1,4 +1,4 @@
-"""3D mathematical tests specified before timestamped inference exists."""
+"""Timestamped 3D mathematics, physical recovery and chain convergence."""
 
 import contextlib
 import io
@@ -130,3 +130,81 @@ def test_timestamped_physical_field_recovery(seed, feature):
 def test_regular_and_finer_smooth_recovery():
     assert recovery("cpu", 41, False, irregular=False)["recovery_rms"] < 0.1
     assert recovery("cpu", 41, True, substeps=10)["recovery_rms"] < 0.1
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("feature", [False, True])
+def test_independent_3d_chains_converge(tmp_path, monkeypatch, feature):
+    """Check all 278 quantities in four independently initialized full chains."""
+    from concurrent.futures import ProcessPoolExecutor
+    import json
+    import multiprocessing
+
+    from scripts.run_sampling_repair import run_chain, summarize
+
+    monkeypatch.setenv("OPENBLAS_NUM_THREADS", "1")
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+    with ProcessPoolExecutor(
+        max_workers=4, mp_context=multiprocessing.get_context("spawn")
+    ) as pool:
+        futures = [
+            pool.submit(
+                run_chain, tmp_path, "cpu", feature, index,
+                None, False, False, 8,
+            )
+            for index in range(4)
+        ]
+        for future in futures:
+            future.result()
+    result = summarize(tmp_path, 4, False)["cpu"]
+    (tmp_path / "convergence.json").write_text(
+        json.dumps(result, indent=2) + "\n"
+    )
+    assert result["scientific_pass"], result["checkpoints"][-1]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("block_size", [8, 16])
+def test_fixed_whitened_block_geometry_and_density(block_size):
+    """Check the full 125-coordinate proposal using independent densities."""
+    data = prepared(count=300)
+    parameters = {
+        **model.PARAMETERS,
+        "nInduX": 5, "nInduY": 5, "nInduZ": 5,
+        "nFineX": 3, "nFineY": 3, "nFineZ": 3,
+        "covLambda": 0.5, "covL": 1.5,
+    }
+    with contextlib.redirect_stdout(io.StringIO()):
+        v = f.initialization(parameters, data)
+    f.prepare_block_proposals(v, block_size)
+    bound = 128 * np.finfo(float).eps * np.linalg.cond(v.cProposal)
+    precision = v.cInduInduInv + v.cDataIndu.T @ (
+        (1.5 / v.dData**2)[:, None] * v.cDataIndu
+    )
+    np.testing.assert_allclose(
+        v.block_directions.T @ precision @ v.block_directions,
+        np.eye(125), rtol=bound, atol=bound,
+    )
+    change = 0.05 * np.sin(np.arange(block_size))
+    proposed = v.dIndu + v.block_directions[:, :block_size] @ change
+    field = v.cDataIndu @ proposed
+    incremental = v.dData + change @ v.block_basis[:block_size]
+    np.testing.assert_allclose(incremental, field, rtol=bound, atol=bound)
+    actual = f.likelihood_difference(v.dData, incremental, v.a, 3)
+    actual += (
+        f.log_prior(proposed, v.priorMean, v.cInduInduInv)
+        - f.log_prior(v.dIndu, v.priorMean, v.cInduInduInv)
+    )
+
+    def oracle(inducing, diffusion):
+        return stats.norm.logpdf(
+            data.ends - data.starts,
+            scale=np.sqrt(2 * diffusion[:, None] * data.delta_t[:, None]),
+        ).sum() + stats.multivariate_normal.logpdf(
+            inducing, mean=v.priorMean, cov=v.cProposal
+        )
+
+    np.testing.assert_allclose(
+        actual, oracle(proposed, field) - oracle(v.dIndu, v.dData),
+        rtol=bound, atol=bound,
+    )

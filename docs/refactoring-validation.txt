@@ -1,4 +1,9 @@
-STAGE 5 NUMERICAL REFACTORING
+HISTORICAL STAGE 5 NUMERICAL REFACTORING
+
+The GPU implementation described below was subsequently removed after the
+user's performance review. Current CPU-only installation, rationale and
+validation are recorded in cpu-only-decision.txt. GPU commands below refer
+to the historical implementation at revision 39c7eeb.
 
 Begins after Stage 4 and its required-CUDA suite passed (30 tests, zero skips).
 The original functions.py entry points remain importable; implementations now

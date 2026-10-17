@@ -10,7 +10,7 @@ import model
 
 
 def infer_file(
-    path: str | Path, *, dimensions: int = 3, backend: str = "gpu",
+    path: str | Path, *, dimensions: int = 3, backend: str = "cpu",
     dtype: str = "float64", iterations: int = 1000, scale: float = 1,
     delta_t: float | None = None, particle_col: str = "particle #",
     z_col: str = "z", y_col: str = "y", x_col: str = "x",
@@ -24,8 +24,8 @@ def infer_file(
         Linked track table, selected by suffix.
     dimensions : {2, 3}, optional
         XY or ZYX spatial coordinates; timestamp is never a spatial axis.
-    backend : {"cpu", "gpu"}, optional
-        Explicit numerical hardware, with no fallback.
+    backend : {"cpu"}, optional
+        Retained for existing CPU callers; other values are rejected.
     dtype : str, optional
         Validated float64 precision. Float32 failed scientific validation.
     iterations : int, optional

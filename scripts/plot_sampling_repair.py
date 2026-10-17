@@ -1,4 +1,4 @@
-"""Plot independent production traces and rank histograms after sampler repair."""
+"""Plot historical CPU/GPU repair archives; no CUDA execution is performed."""
 
 import argparse
 import json

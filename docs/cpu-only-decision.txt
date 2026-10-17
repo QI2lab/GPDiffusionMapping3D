@@ -1,0 +1,93 @@
+CPU-ONLY SIMPLIFICATION AFTER THE USER'S PERFORMANCE REVIEW
+
+Decision
+The user authorized removing GPU code unless a clear acceleration path justified
+its complexity. Use the validated NumPy/Numba CPU float64 implementation.
+This decision supersedes the GPU requirements in the original stage plan.
+
+Evidence before removal (local revision 39c7eeb)
+Isolated, warmed, sequential CPU/GPU full-inference measurements:
+  2D, 100000 transitions, 36 inducing values, 100 production sweeps:
+    CPU 40.0194 s; GPU 29.9972 s; GPU speedup 1.334x.
+  3D, 20000 transitions, 125 inducing values, 1000 production sweeps:
+    CPU 102.3449 s; GPU 97.8870 s; GPU speedup 1.046x.
+  Small 2D, 1000 transitions, warmed sweep:
+    CPU 0.00189 s; GPU 0.01492 s; GPU slower by about 7.9x.
+GPU was available and scientifically validated on actual RTX3090 hardware.
+Removal is a performance/maintenance decision, not a CUDA availability issue.
+
+The GPU implementation already fused likelihood/positivity reductions and kept
+bulk arrays resident. Its Python control loop still synchronized a scalar for
+every dependent Metropolis proposal/block, with separate small matrix products
+and accepted-state updates. In 3D each 125-coordinate sweep has 16 blocks.
+Eliminating those round trips would require moving sequential acceptance and
+random-number generation onto the device, with new CUDA implementation and
+validation. That is a substantial project with an unmeasured speedup. Merely
+increasing block size is not a justified shortcut: size 16 failed the declared
+mixing criterion on the smooth field, whereas size 8 passed. No approximation,
+precision change or weakened convergence criterion is introduced for speed.
+These workload measurements do not establish performance for all larger inputs.
+
+Changes
+- Remove CuPy kernels, device array management, GPU samplers and float32 code.
+- Remove the gpu extra/default dependency group and CUDA wheels from the local
+  uv environment. Base scientific dependency versions are unchanged.
+- CLI always runs CPU float64; remove --backend and --dtype switches.
+- Keep existing computational CPU callers compatible. Explicit unsupported
+  backend/precision values raise errors; there is no silent conversion.
+- Retain CSV/Parquet, exact column mappings, physical units and elapsed times.
+- Preserve original 2D proposals and repaired blocked-8 3D Metropolis inference,
+  fixed production geometry/widths and additional discarded burn-in.
+- Retire GPU-only tests/scripts. Transfer full four-chain convergence and
+  125-coordinate block-geometry checks to tests/cpu, retaining independent
+  posterior quadrature, Gaussian-density and simulated-physics oracles.
+- Keep historical numerical results and figures in docs and raw local artifacts.
+  Historical plot scripts only read those archives; they do not execute CUDA.
+  The removed experiments are available from local Git revision 39c7eeb.
+
+Current installation and validation
+    uv sync --group dev
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/cpu-only-tests
+
+The local environment sync removed eleven CUDA-related packages (including
+CuPy) and rebuilt the editable project. No system NVIDIA driver was changed.
+Full scientific suite: 48 passed, zero failures/skips, 1769.59 seconds.
+This includes four independently initialized CPU chains per field with 20000
+production sweeps each. All 278 quantities per field meet the unchanged gates:
+R-hat < 1.01, bulk/tail ESS >= 400 and mean MCSE < 5% of posterior SD.
+
+                 Uniform             Smooth
+Maximum R-hat    1.0053586201         1.0049356698
+Minimum bulk ESS 2200.4355            2132.6351
+Minimum tail ESS 4777.5783            4195.3463
+Maximum MCSE/SD  0.02133893           0.02168548
+MAP RMS range    4.6403–6.6782%       4.4641–5.4332%
+All blocks accept proposals in production. Maximum posterior recomputation
+error across both fields is 7.058e-10 against independent Gaussian/GP densities.
+CSV, Parquet and renamed/scaled Parquet each recover the 3D constant field
+within 6.7844% RMS; legacy 2D CSV within 3.5743%. File-path Gaussian-density
+error is at most 7.276e-12. Full 2D/3D mathematics, Brownian predictions,
+regular/irregular timestamps, fine-step simulations and posterior quadrature
+also pass. Compact results and exact dependency versions are recorded in
+cpu-only-scientific-results.json; raw chains/logs remain in the ignored
+validation_artifacts/cpu-only-tests directory.
+
+The 48-test CPU suite adds two full four-chain convergence cases and two
+125-coordinate geometry cases to the former 44-test CPU suite. Its duration
+includes these additional scientific calculations and is not an inference
+performance comparison with the earlier suite.
+
+Additional checks actually run:
+    uv run --no-sync python -m pytest tests/cpu -m unit --strict-markers -q
+    uv run --no-sync gpdiffusion-map --help
+The initial mathematical subset passed 13 tests before the two transferred
+geometry cases were added; the full suite includes them. CLI help was manually
+inspected and is not counted as scientific validation. Source review confirms
+unchanged numerical bodies for covariance, CPU RNG, both compiled samplers,
+the full-density posterior, smoothing, grids and warmup. The environment's
+installed package metadata contains no CuPy/CUDA/NVIDIA Python distributions.
+No new GPU run or GPU skip is involved in this CPU-only validation. Historical
+isolated timing measurements above are retained; no new speedup is claimed.
+
+Only the local Linux/Python 3.12 workstation is exercised. Windows and macOS
+remain untested. uv.lock stays ignored and untracked. No push or PR is made.

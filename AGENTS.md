@@ -1,5 +1,28 @@
 # GPDiffusionMapping instructions for Codex
 
+## Current CPU-only scope (user decision after Stage 5)
+
+The user authorized removing GPU support after reviewing the measured speedups.
+This supersedes the GPU implementation, dependency, CLI and validation
+requirements below and in the original plan. Stages 0–5 were completed before
+this decision; their results remain historical evidence in `docs/`.
+
+- Maintain CPU float64 inference using NumPy/Numba. Do not reintroduce CuPy,
+  CUDA dependencies or GPU execution without a new user request.
+- Preserve the validated 2D sampler and repaired eight-coordinate blocked 3D
+  sampler, posterior, positivity rules and warmup/production schedules.
+- Install with `uv sync --group dev` and run the scientific suite with
+  `uv run --no-sync python -m pytest tests/cpu --strict-markers -q`.
+- Keep mathematical, physical and independent multi-chain convergence checks.
+  GPU comparison tests and executable CUDA experiments are retired.
+- CLI inference always uses CPU float64. Existing computational API
+  `backend="cpu"` and `dtype="float64"` arguments remain accepted; unsupported
+  values must raise an error rather than silently change execution.
+- Preserve local branch, ignored lockfile, scientific test, input/unit and
+  no-push constraints below. See `docs/cpu-only-decision.txt` for the evidence.
+
+## Original implementation instructions (historical GPU requirements)
+
 Read `docs/CODEX_GPDiffusionMapping_plan.txt` completely before implementation.
 Follow its stages and scientific validation gates in order. This file contains
 the standing constraints; the plan contains the mathematical details.

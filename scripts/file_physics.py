@@ -69,7 +69,7 @@ def validate_file_physics(directory: Path, backend: str, case: str):
         frame.to_parquet(path, index=False)
     model_options = dict(
         nFineX=5, nFineY=5, nFineZ=5, covLambda=0.5, covL=1.5,
-        seed=601 if backend == "cpu" else 701,
+        seed=601,
     )
     if legacy:
         model_options.update(nInduX=4, nInduY=4)
