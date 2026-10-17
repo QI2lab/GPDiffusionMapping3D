@@ -1,23 +1,30 @@
-CURRENT STATUS
+# Implementation stages
+
+> This record preserves the measurements and software state at the time.
+> For current usage, see the [workflow](workflow.md) and [map outputs](map-export.md).
+
+## Current status
+
 CPU-only float64; the complete suite passed 56 tests with zero skips, including
 both full four-chain convergence cases. This follows the user's performance review after Stages 0–5
-completed at revision 39c7eeb. See cpu-only-decision.txt for the simplification
-and CPU removal validation; cpu-optimization.txt records the subsequent exact
+completed at revision 39c7eeb. See [cpu-only-decision.md](cpu-only-decision.md) for the simplification
+and CPU removal validation; [cpu-optimization.md](cpu-optimization.md) records the subsequent exact
 CPU proposal optimization and current scientific validation. GPU commands in this timeline apply to the
 historical implementation. The dated findings below include failed intermediate
-experiments; see RESULTS.txt for the final pre-removal measurements.
+experiments; see [RESULTS.md](RESULTS.md) for the final pre-removal measurements.
 
-HISTORICAL INTERMEDIATE STATUS (SUPERSEDED BY LATER ENTRIES)
+## Historical intermediate status (superseded by later entries)
+
 Stages 0-3 passed; float32 was rejected and float64 retained. Stage 4
 mathematical/physical recovery checks pass, but independent-chain convergence
 remains unresolved. Stage 5 has not started. The 5,000-production-sweep smooth
 comparison failed at 4/27 points; its ten-batch uncertainty estimate is sensitive
-to batch length. See RESULTS.txt for a concise measured summary and
-3d-burnin-investigation.txt for the user-authorized uniform/smooth comparison
+to batch length. See [RESULTS.md](RESULTS.md) for a concise measured summary and
+[3d-burnin-investigation.md](3d-burnin-investigation.md) for the user-authorized uniform/smooth comparison
 with 10,000 extra discarded temperature-one sweeps. Historical entries below
 record intermediate findings; later corrections supersede earlier results.
 
-Local stage evidence, 2026-10-16
+## Local stage evidence, 2026-10-16
 
 Starting revision: 1733d388e6faad15cc01b28ce14bfbca17122501.
 Relative to d896544d019a6d702d3ccf5438c9b21b9449ccab the starting
@@ -25,7 +32,8 @@ checkout adds instructions/plan and .gitignore changes; numerical files agree.
 Preserved pre-existing deletion of root CODEX_GPDiffusionMapping_plan.txt and
 untracked docs/ plan. Created feat/3D and verified its exact name before edits.
 
-Stage 0
+## Stage 0
+
 Consulted all five specified OPM references at revision
 4fbbdfe9cb096d7bb6602c38e76ff51cb88949cd (the actual fetched HEAD).
 Adopted its default GPU group/self-extra and cupy-cuda12x[ctk] strategy.
@@ -68,7 +76,8 @@ installation and reference downloads required approved outside-sandbox commands.
 uv.lock is ignored and absent from git ls-files. Linux only was exercised;
 Windows/macOS and CI were not tested. No formal pytest suites were run.
 
-Stage 1: incomplete, failed prerequisite mathematical consistency check
+## Stage 1: incomplete, failed prerequisite mathematical consistency check
+
 Read the paper's preprint methods (publisher full text was inaccessible):
 https://www.biorxiv.org/content/10.1101/2024.02.27.582378v1.full
 The interpolation and transformed proposal must describe the same field.
@@ -87,7 +96,8 @@ proposal correction, update order and annealing/adaptation.
 Stages 1-5 have not passed. No GPU inference, float32 decision, inference
 recovery, speedup or inference memory claim is made. No 3D or CLI changes made.
 
-Stage 1 correction (subsequent work)
+## Stage 1 correction (subsequent work)
+
 The inducing proposal now uses the same R column whose inverse defines alpha
 and interpolation. W@R[:,k]=B[k,:] to conditioning error. R replaces K only in
 the transformed-coordinate proposal; the RBF kernel, jitter magnitude, prior
@@ -96,7 +106,8 @@ The original reproducer now has discrepancy 4.440892098500626e-16, below its
 unchanged 4.304979730825718e-13 bound. This is an isolated pre-existing defect
 correction, not a numerical tolerance adjustment.
 
-Stage 1 validation protocol and optimization evidence
+## Stage 1 validation protocol and optimization evidence
+
 Predeclared seeds 41,42,43; 10,000 independent two-localization tracks, dt=.005 s,
 start positions uniform [-3,3]^2 nm, D=1 nm^2/s or
 D(r)=1+.4*exp(-||r||^2/2) nm^2/s, defined on unbounded space. No walls/clipping.
@@ -121,7 +132,7 @@ Initialization previously took 31.93 s for 100k steps due to repeated vstack;
 replaced it with identical consecutive-pair masking, not a new trajectory rule.
 No custom GP kernel, fast math, diffusion floor, jitter change, temperature
 change or sampler stopping change was introduced.
-Stage 1 gate PASSED: complete sequential evidence in stage1-results.json.
+Stage 1 gate PASSED: complete sequential evidence in [stage1-results.json](stage1-results.json).
 Representative 100k transitions: CPU 43.1534 s, GPU 28.4315 s (1.518x),
 including initialization, transfers, warmup/adaptation and production sampling.
 RMS recovery: CPU 1.897%, GPU .952%. GPU retained memory-pool capacity reached
@@ -147,7 +158,7 @@ budget. This budget limits a multiplicative acceptance perturbation to exp(1e-4)
 All three seeds still recovered both physical fields (<4.7% RMS in float32),
 but recovery alone does not repair inaccurate proposal ratios. GPU float32
 runs took ~4.15-4.43 s vs ~6.0-6.98 s float64 for 10k transitions. Details in
-stage2-results.json and representative 100k checks in stage2-large-results.json.
+[stage2-results.json](stage2-results.json) and representative 100k checks in [stage2-large-results.json](stage2-large-results.json).
 No jitter changes, new floors, mixed precision or favorable seed selection.
 Representative Stage 2 confirmation (100k transitions, all-float32 density):
 resident numerical arrays 62,453,568 bytes float64 / 31,226,784 bytes float32;
@@ -155,7 +166,8 @@ ordinary-case ratio error .0004924; stressed ratio error .00998855. Both exceed
 1e-4. Float32 full-density outputs are explicitly float32 in the recorded run.
 The rejection applies even without the length-scale stress at this data size.
 
-Stage 3 scientific suite
+## Stage 3 scientific suite
+
 CPU command: uv run --no-sync python -m pytest tests/cpu --strict-markers -q
 Result: 15 passed, 34.51 s, zero skips. Explicit CPU backend throughout.
 Independent multivariate Gaussian and GP density oracles; scalar Metropolis
@@ -169,7 +181,8 @@ Stage 3 gate PASSED: required GPU suite 5 passed, 68.34 s, zero skips, on the
 RTX 3090. CPU suite 15 passed independently. No formal float32 correctness
 suite was added because float32 was rejected. No 3D code preceded these gates.
 
-Stage 4 specification and implementation
+## Stage 4 specification and implementation
+
 Added 3D mathematical/physical tests before implementing the 3D path. The first
 unit run failed as expected (prepare_tracks absent); after implementation the
 same two units pass. Actual-GPU 3D unit check also passes, including independent
@@ -197,7 +210,7 @@ Separate 3D float32 re-evaluation: rejected again, without changing float64.
 Ordinary ratio error .0001533 and stress error .0442453 exceed 1e-4. Stress
 inverse residual .002007 and field error .0005709 (cond(R)=12501).
 Resident arrays: float64 41,913,000 / float32 20,956,500 bytes. The 3D diagnostic
-uses the full 3D density/ratio with float32 arrays; see stage4-float32-results.json.
+uses the full 3D density/ratio with float32 arrays; see [stage4-float32-results.json](stage4-float32-results.json).
 Stage 4 full-suite correctness runs (before additional chain-mean diagnostic):
 CPU: 30 passed in 343.66 s; required GPU: 13 passed in 329.60 s; zero skips.
 These separately invoked suites overlapped in time; their durations are not
@@ -236,14 +249,14 @@ deterministic float32 accuracy rejection and mathematical bounds are unchanged.
 
 Post-RNG-correction revalidation, in stage order:
 Stage 1 PASSED again: all seeds/fields/finer simulations and mathematical
-checks passed. Updated stage1-results.json: 100k-step full warmed inference
+checks passed. Updated [stage1-results.json](stage1-results.json): 100k-step full warmed inference
 CPU 43.4735 s, GPU 30.1589 s (1.4415x), recovery 1.897% both. Pool capacity
 210,595,840 bytes. Host context/kernel warmup is reported separately in the
 benchmark entries; full inference timings include transfers and all schedule
 phases after warmup, not a claim about cold Python/CUDA import startup.
 Post-correction Stage 2 re-run completed with the same rejection: stressed
 2D ratio error .00116543 >1e-4; three-seed float32 recovery <5.14%, but that
-physical recovery does not override the ratio failure. Updated stage2-results.json.
+physical recovery does not override the ratio failure. Updated [stage2-results.json](stage2-results.json).
 3D defaults now use the protocol's already validated 5x5x5 inducing grid;
 the existing 2D defaults remain 30x30. This aligns new 3D defaults with its
 predeclared recovery operating point, rather than introducing an untested grid.
@@ -265,7 +278,7 @@ inflation. Concurrent durations are not performance measurements.
 
 Completed 5000-production-sweep comparison: FAILED at 4/27 positions, with
 minimum estimated ESS CPU 8.47 / GPU 6.20. Saved raw traces are local/ignored;
-stage4-sampling-5000.json and figures/3d-sampling-5000.png record the evidence.
+[stage4-sampling-5000.json](stage4-sampling-5000.json) and [figures/3d-sampling-5000.png](figures/3d-sampling-5000.png) record the evidence.
 Sequential 3D warmed timing/recovery measurements completed separately:
 CPU 32.8878 s / GPU 30.1335 s; both 4.971% MAP RMS, 20k transitions, m=125,
 100 production sweeps. GPU live arrays 41,913,000 bytes, retained pool
@@ -286,13 +299,21 @@ chi-square control passes and both truths have <1% representation error;
 poor tuning and inverse-coordinate geometry are concrete concerns, not
 evidence of unavailable CUDA or a problem restricted to the smooth feature.
 Independent Gaussian/posterior recomputation at three production states per
-chain agrees within 1.21e-9. See 3d-burnin-investigation.txt,
-stage4-burnin-10000.json and figures/3d-burnin-10000.png for full evidence.
+chain agrees within 1.21e-9. See [3d-burnin-investigation.md](3d-burnin-investigation.md),
+[stage4-burnin-10000.json](stage4-burnin-10000.json) and [figures/3d-burnin-10000.png](figures/3d-burnin-10000.png) for full evidence.
 
 After optional burn_in support, separate preservation runs:
-    uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+
+```bash
+uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+```
+
 30 passed, 365.91 s.
-    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu -k 'not independent_3d_chain_means_with_sampling_uncertainty' --strict-markers -q
+
+```bash
+GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu -k 'not independent_3d_chain_means_with_sampling_uncertainty' --strict-markers -q
+```
+
 16 passed, 1 deselected, zero skips, 640.74 s. The deselected old long check
 was already executed and failed; it is not hidden as a hardware skip.
 The four explicit extended-burn-in chains are diagnostic runs, not pytest
@@ -300,9 +321,17 @@ passes. Stage 4 remains incomplete; Stage 5 has not begun.
 
 User-authorized sampling repair, separate from the failed preserved-sampler
 investigation above:
-    uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+
+```bash
+uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+```
+
 40 passed, 425.28 s, after stable warmup, additive and fixed blocked proposals.
-    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu -k 'not independent_3d_chain_means_with_sampling_uncertainty' --strict-markers -q
+
+```bash
+GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu -k 'not independent_3d_chain_means_with_sampling_uncertainty' --strict-markers -q
+```
+
 27 passed, 1 deselected, zero skips, 673.20 s. The old long comparison was
 replaced afterward by two full four-chain convergence tests with the new
 predeclared R-hat/ESS/MCSE requirements. Their full-suite run is pending.
@@ -311,12 +340,16 @@ passed: 3 passed, 8 deselected, 2.85 s (unit selection only).
 
 Block size16 failed the smooth-field convergence gate at 20000 production
 sweeps; block size8 passed development for both fields and backends at the
-same cap, seeds and unchanged thresholds. See sampling-repair-plan.txt,
-sampling-repair-mathematics.txt and sampling-blocked8-development.json.
+same cap, seeds and unchanged thresholds. See [sampling-repair-plan.md](sampling-repair-plan.md),
+[sampling-repair-mathematics.md](sampling-repair-mathematics.md) and [sampling-blocked8-development.json](sampling-blocked8-development.json).
 Held-out confirmation passed both fields and backends, all original thresholds:
 maximum R-hat 1.005008, minimum bulk/tail ESS 2083.29/4113.03, maximum mean
 MCSE/SD .02191, MAP RMS 3.426-6.326%, simultaneous CPU/CUDA mean agreement.
-    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
+
+```bash
+GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
+```
+
 Full suite: 30 passed, zero skips, 2044.70 s, including both fresh four-chain
 convergence tests. Stage 4 sampling repair PASSED. Stage 5 may now proceed.
 3D defaults select block size8 and the validated warmup schedule. The legacy
@@ -330,26 +363,42 @@ physical track preparation and exact column overrides. Existing units and
 the computational API remain available independently of the command.
 
 Final full scientific runs:
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
+```
+
 CPU44 passed,730.90 s.
-    GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+
+```bash
+GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+```
+
 GPU34 passed, zero skips,1846.32 s. These include both fresh4-chain convergence
 cases and all4 physical file cases per backend. Timing of concurrent correctness
-runs is not used to claim hardware speedup. See stage5-scientific-results.json.
+runs is not used to claim hardware speedup. See [stage5-scientific-results.json](stage5-scientific-results.json).
 
 Final isolated performance after explicit temperature-variant/full-model warmup:
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
+```
+
 2D100k,m36,n100 CPU40.0194 / GPU29.9972 s, MAP RMS1.897% both, actual
 Gaussian-density errors0 /2.910e-11, CUDA pool204835328 bytes. Speedup1.3341x.
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+```
+
 3D20k,m125,n1000 CPU102.3449 / GPU97.8870 s, MAP RMS7.3316% /5.0659%,
 posterior-density errors6.185e-10 /4.366e-11, CUDA pool201347584 bytes.
 The qualified initial warmup measurements and one-draw reporting warning are
-retained in refactoring-validation.txt and associated reports. Final measurements
+retained in [refactoring-validation.md](refactoring-validation.md) and associated reports. Final measurements
 warm both Numba temperature types explicitly and do not suppress warnings.
 
 Fresh actual synchronized float64 CuPy sum(arange(32)**2) returned10416.0 on
 each of device0/device1, both NVIDIA GeForce RTX3090, CUDA runtime12.9.
 All stages0-5 are complete locally. Float64 is retained; float32 remains rejected.
-No push or PR. uv.lock stays ignored/untracked. See RESULTS.txt and README.md
+No push or PR. uv.lock stays ignored/untracked. See [RESULTS.md](RESULTS.md) and README.md
 for current commands, scientific limits, CLI usage and untested platforms.

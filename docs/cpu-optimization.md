@@ -1,21 +1,26 @@
-CPU PROPOSAL OPTIMIZATION
+# CPU optimization
+
+> This record preserves the measurements and software state at the time.
+> For current usage, see the [workflow](workflow.md) and [map outputs](map-export.md).
 
 Baseline: local revision bb2ddd7 on feat/3D, after GPU removal.
 Execution: local Linux workstation, Python 3.12, existing uv CPU environment.
 CPU: Intel Xeon E5-2650, nominal 2.00 GHz. Windows/macOS and modern CPU SIMD
 architectures were not benchmarked; speedups are workload/hardware specific.
 
-Measured bottleneck
+## Measured bottleneck
+
 Warmed cProfile measurements put 98% of the profiled 2D time and 98% of the
 profiled 3D time inside the compiled Metropolis sweeps. MAP deep copies accounted
 for less than 0.4% on these workloads, so they were not changed. See
-cpu-profile-before.json and raw profiles in validation_artifacts/cpu-profile-before.
+[cpu-profile-before.json](cpu-profile-before.json) and raw profiles in validation_artifacts/cpu-profile-before.
 
 The 2D relative/additive sampler recomputed the entire normalized Gaussian
 posterior after each positive proposal. The 3D blocked sampler already used
 incremental likelihood/prior differences, but recalculated old-state terms.
 
-Changes retained
+## Changes retained
+
 1. Cache each current observation's Gaussian log term within a sweep:
        ell_j(D) = -(d/2) log(D) - a_j/D,
        a_j = ||r_next-r_start||^2 / (4 delta_t_j).
@@ -46,7 +51,8 @@ adaptation, additional burn-in and production lengths are preserved. There
 is no fast-math, precision change, thinning, approximation or threaded sampler.
 The original full-density cpu_log_posterior remains available as a reference.
 
-Final isolated unprofiled measurements
+## Final isolated unprofiled measurements
+
 An archived sampler from bb2ddd7 and the optimized sampler were run sequentially
 in the same uv process, with the same model, initialization, physical inputs,
 seeds, grids and schedules. Each sampler was compiled/warmed before timing.
@@ -56,28 +62,31 @@ only inside the measurement process and are restored afterward; they are not
 an installed alternative inference engine. No scientific test or other inference
 ran concurrently with these final measurements.
 
-Workload                         Before       After        Speedup
-2D N=100000, m=36, production100  41.2806 s    31.8989 s    1.294x
-3D N=20000, m=125, production1000 102.7181 s   61.8244 s    1.661x
+| Workload | Before | After | Speedup |
+| --- | --- | --- | --- |
+| 2D N=100000, m=36, production100 | 41.2806 s | 31.8989 s | 1.294x |
+| 3D N=20000, m=125, production1000 | 102.7181 s | 61.8244 s | 1.661x |
 
 These unprofiled results are the primary performance comparison. The profiling
 run below overstated the 2D improvement: its baseline timing was higher. All
 raw measurements are retained rather than reporting the more favorable ratio.
 Both versions passed independent posterior/physical checks. Final MAP RMS is
 1.8966% (2D) and 7.3316% (3D), with optimized posterior discrepancy at most
-6.985e-10 across the selected benchmark draws. See cpu-optimization-performance.json
+6.985e-10 across the selected benchmark draws. See [cpu-optimization-performance.json](cpu-optimization-performance.json)
 and scripts/compare_cpu_performance.py. One measured pair per workload is not
 a timing confidence interval or a guarantee for other datasets/hardware.
 
-Profiled warmed full-inference measurements (bottleneck evidence)
+## Profiled warmed full-inference measurements (bottleneck evidence)
+
 Each row includes initialization, annealing, adaptation, extra discarded
 burn-in when configured, production and MAP collection. Both versions use
 float64, OPENBLAS_NUM_THREADS=1 and OMP_NUM_THREADS=1. These are sequential
 single-workstation measurements, not cross-platform guarantees.
 
-Workload                        Before       After        Speedup
-2D N=100000, m=36, production100 54.6530 s    31.7365 s    1.722x
-3D N=20000, m=125, production1000 104.7571 s   61.4987 s    1.703x
+| Workload | Before | After | Speedup |
+| --- | --- | --- | --- |
+| 2D N=100000, m=36, production100 | 54.6530 s | 31.7365 s | 1.722x |
+| 3D N=20000, m=125, production1000 | 104.7571 s | 61.4987 s | 1.703x |
 
 2D uses 200 annealing and 200 adaptation sweeps. 3D uses 2000 annealing,
 4000 temperature-one adaptation, 1000 extra discarded sweeps and eight-coordinate
@@ -88,16 +97,17 @@ are process-lifetime high-water marks across warmup/workloads, not isolated
 per-chain memory peaks; no memory-reduction claim is made.
 
 The comparison uses warmed cProfile runs on both versions; profiler overhead
-is included. Full profile records are in cpu-profile-before.json and
-cpu-profile-after.json. An additional unprofiled 2D run took 31.4783 seconds
+is included. Full profile records are in [cpu-profile-before.json](cpu-profile-before.json) and
+[cpu-profile-after.json](cpu-profile-after.json). An additional unprofiled 2D run took 31.4783 seconds
 and checked first/middle/last posterior values against independently rebuilt
 GP matrices and SciPy Gaussian densities: maximum discrepancy 6.985e-10.
 Its MAP recovery RMS is 1.8966%. The profiled 3D run recovered 7.3316% RMS,
 with maximum full-posterior discrepancy 6.767e-10. See
-cpu-optimized-2d-performance.json for initialization/sweep/memory details.
+[cpu-optimized-2d-performance.json](cpu-optimized-2d-performance.json) for initialization/sweep/memory details.
 Short benchmark runs are physical/timing checks, not convergence claims.
 
-Alternatives measured but not shipped
+## Alternatives measured but not shipped
+
 The independent proposal benchmark covers 1000, 20000 and 100000 observations.
 At 20000 observations, the scalar likelihood took about 0.627 ms and cached
 terms about 0.347 ms. Merely fusing proposal/positivity/scalar-ratio arithmetic
@@ -108,9 +118,10 @@ in isolation: approximately 0.147 ms with four threads and 0.095 ms with eight.
 Those numbers exclude the rest of inference. Automatic thread policy and
 oversubscription with independent chains have not been validated, so the
 production sampler remains serial. No claim of a threaded full-model speedup
-is made. See cpu-proposal-microbenchmarks.json and benchmark_cpu_proposals.py.
+is made. See [cpu-proposal-microbenchmarks.json](cpu-proposal-microbenchmarks.json) and benchmark_cpu_proposals.py.
 
-Validation
+## Validation
+
 The initial 15 existing mathematics tests passed after implementation. Eight
 new mathematical cases cover independent Gaussian densities across diffusion
 scales, zero/small/ordinary moves, and zero/negative diffusion support. All
@@ -130,17 +141,23 @@ Maximum posterior recomputation error is 1.092e-9 (uniform) / 5.457e-10 (smooth)
 All production blocks accept moves. MAP RMS spans 4.6403–6.6782% (uniform) and
 4.4641–5.4332% (smooth). All CSV/Parquet/column/unit-conversion cases pass:
 3D RMS 6.7844%, legacy 2D RMS 3.5743%, Gaussian error <=7.276e-12.
-See cpu-optimized-scientific-results.json for compact results and versions;
+See [cpu-optimized-scientific-results.json](cpu-optimized-scientific-results.json) for compact results and versions;
 raw draws/logs remain in validation_artifacts/cpu-optimized-tests.
 
-Commands actually run
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/profile_cpu.py --directory validation_artifacts/cpu-profile-before --output docs/cpu-profile-before.json
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_cpu_proposals.py --output docs/cpu-proposal-microbenchmarks.json
-    uv run --no-sync python -m pytest tests/cpu -m unit --strict-markers -q
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/profile_cpu.py --directory validation_artifacts/cpu-profile-after --output docs/cpu-profile-after.json
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/cpu-optimized-2d-performance.json
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/cpu-optimized-tests
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/compare_cpu_performance.py --baseline bb2ddd7 --directory validation_artifacts/cpu-benchmark-paired --output docs/cpu-optimization-performance.json
+## Commands actually run
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/profile_cpu.py --directory validation_artifacts/cpu-profile-before --output docs/cpu-profile-before.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_cpu_proposals.py --output docs/cpu-proposal-microbenchmarks.json
+```
+
+```bash
+uv run --no-sync python -m pytest tests/cpu -m unit --strict-markers -q
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/profile_cpu.py --directory validation_artifacts/cpu-profile-after --output docs/cpu-profile-after.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/cpu-optimized-2d-performance.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/cpu-optimized-tests
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/compare_cpu_performance.py --baseline bb2ddd7 --directory validation_artifacts/cpu-benchmark-paired --output docs/cpu-optimization-performance.json
+```
 
 Only Linux/Python 3.12 was exercised. Windows/macOS and other CPU architectures
 remain untested. No GPU code/dependency was reintroduced. uv.lock stays ignored

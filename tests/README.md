@@ -15,7 +15,7 @@ uv run --no-sync python -m pytest tests/cpu --strict-markers -q \
 ```
 
 Full convergence remains an explicit pre-merge request via the
-`run-convergence` PR label. See [the CI guide](../docs/github-ci.txt).
+`run-convergence` PR label. See [the CI guide](../docs/github-ci.md).
 
 Standalone development tools can run as modules, for example:
 

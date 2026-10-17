@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
+site_name: GPDiffusionMapping
+site_description: Spatial diffusion mapping from linked 2D and 3D trajectories
+site_url: https://dpshepherd.github.io/GPDiffusionMapping/
+repo_name: GPDiffusionMapping
+repo_url: https://github.com/dpshepherd/GPDiffusionMapping
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.instant
+    - navigation.instant.progress
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      accent: blue
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: grey
+      accent: light blue
+      toggle:
+        icon: material/lightbulb
+        name: Switch to light mode
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Workflow: workflow.md
+  - Map outputs: map-export.md
+  - API notes: api.md
+  - Scientific validation:
+      - Overview and reports: reference/index.md
+      - Results: RESULTS.md
+      - CPU-only decision: cpu-only-decision.md
+      - CPU optimization: cpu-optimization.md
+      - Sampling mathematics: sampling-repair-mathematics.md
+      - Sampling repair: sampling-repair-plan.md
+      - Burn-in investigation: 3d-burnin-investigation.md
+      - Implementation stages: stage-validation.md
+      - Refactoring: refactoring-validation.md
+      - Test fixtures: test-fixture-audit.md
+  - GitHub CI: github-ci.md
+  - Contributing: contributing.md
+
+exclude_docs: |
+  CODEX_GPDiffusionMapping_plan.txt
+
+validation:
+  nav:
+    omitted_files: warn
+  links:
+    not_found: warn
+    anchors: warn

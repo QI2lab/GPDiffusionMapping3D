@@ -1,4 +1,7 @@
-MATCHED 3D UNIFORM/SMOOTH INVESTIGATION
+# 3D burn-in investigation
+
+> This record preserves the measurements and software state at the time.
+> For current usage, see the [workflow](workflow.md) and [map outputs](map-export.md).
 
 Question: Is the previous mixing failure specific to the smooth feature or
 to a poorly posed simulation, and does longer burn-in help?
@@ -31,11 +34,15 @@ CPU/GPU speed benchmarks. The scalar CUDA probe synchronized successfully
 on NVIDIA GeForce RTX 3090 and returned 10416.0 before these runs.
 
 Command actually launched:
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/explore_3d_burnin.py --directory validation_artifacts/3d-burnin-10000 --output docs/stage4-burnin-10000.json
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/explore_3d_burnin.py --directory validation_artifacts/3d-burnin-10000 --output docs/stage4-burnin-10000.json
+```
+
 The first sandbox attempt failed because uv could not write its cache lock.
 The same command/environment was approved and retried outside the sandbox.
 
-INDEPENDENT CONTROLS AND INTERPRETATION
+## Independent controls and interpretation
 
 Uniform scalar likelihood control: exact chi-square 99% interval contains the
 known D=1. Its MLE is 1.0019406388, interval [0.9871976688,1.0170013535]. This
@@ -72,17 +79,23 @@ chains per case, from the same initialization procedure with different RNG
 seeds; this is exploratory and does not establish general convergence.
 
 Raw traces/progress logs remain locally in ignored validation_artifacts/.
-Numerical results are saved in stage4-burnin-10000.json. Stage 4 remains
+Numerical results are saved in [stage4-burnin-10000.json](stage4-burnin-10000.json). Stage 4 remains
 incomplete until the scientific sampling concerns are resolved. No new
 sampler, precision strategy, hyperparameter change or Stage 5 CLI is adopted.
 
-PRESERVATION CHECKS AFTER ADDING OPTIONAL BURN-IN
+## Preservation checks after adding optional burn-in
 
-    uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+```bash
+uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+```
+
 30 passed in 365.91 s. This includes actual CPU 2D/3D mathematical and physical
 cases; no CuPy backend is substituted for CPU.
 
-    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu -k 'not independent_3d_chain_means_with_sampling_uncertainty' --strict-markers -q
+```bash
+GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu -k 'not independent_3d_chain_means_with_sampling_uncertainty' --strict-markers -q
+```
+
 16 passed, 1 deselected in 640.74 s; zero skips. The deselected case is the
 previously executed, known failing long chain-mean comparison, not a GPU
 availability skip. This investigation runs its separate longer-burn-in
@@ -91,7 +104,7 @@ comparison on actual CUDA and leaves the original gate unchanged.
 The mathematics-only selections also passed: CPU 7 tests and GPU 6 tests.
 All preservation checks used burn_in=0, retaining the original default schedule.
 
-COMPLETED RESULTS
+## Completed results
 
 Case     Backend  MAP RMS  Minimum projected ESS  Max autocorr time  Zero-accept coefficients
 Uniform  CPU      5.722%   6.624                  754.8 sweeps       3 / 125
@@ -144,8 +157,11 @@ performance benchmarks. Raw NPZ traces include proposal widths, acceptance,
 initial/final alpha, production inducing values and projected field values.
 
 Postprocessing actually run:
-    uv run --no-sync python scripts/explore_3d_burnin.py --directory validation_artifacts/3d-burnin-10000 --output docs/stage4-burnin-10000.json --summarize-only
-    uv run --no-sync python scripts/plot_3d_burnin.py validation_artifacts/3d-burnin-10000 docs/stage4-burnin-10000.json docs/figures/3d-burnin-10000.png
+
+```bash
+uv run --no-sync python scripts/explore_3d_burnin.py --directory validation_artifacts/3d-burnin-10000 --output docs/stage4-burnin-10000.json --summarize-only
+uv run --no-sync python scripts/plot_3d_burnin.py validation_artifacts/3d-burnin-10000 docs/stage4-burnin-10000.json docs/figures/3d-burnin-10000.png
+```
 
 The plot shows central-field traces, running means and log posterior. Its
 R-hat titles report maxima over all 27 sites. Dashed lines are simulation

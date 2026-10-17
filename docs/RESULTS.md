@@ -1,3 +1,5 @@
+# Scientific results
+
 Current units: input positions, internal coordinates and output coordinates
 use microns (um); diffusion uses um^2/s and timestamps remain seconds.
 Use --scale 0.001 for nanometer input. Saved NPZ and MLE metadata keys now
@@ -5,7 +7,7 @@ use _um and _um2_s suffixes. Figures no longer apply a second conversion.
 Measurements below retain their historical units and numerical values.
 
 Current map outputs: integer cell IDs, zero-padded CSV/Parquet maps and calibrated
-float32 OME-TIFF. See map-export.txt for output layout and the latest 28 passing
+float32 OME-TIFF. See [map-export.md](map-export.md) for output layout and the latest 28 passing
 unit/file-physics cases. Inference remains float64.
 
 Micron-unit validation (Linux, Python 3.12, CPU float64): 23 unit cases passed
@@ -15,22 +17,25 @@ nanometer input converted with scale=0.001, timestamped XY/ZYX, and legacy XY.
 Matplotlib/Pyparsing emitted 228 dependency deprecation warnings.
 Full convergence was not rerun; numerical sampling is unchanged.
 Commands (OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1; MPLBACKEND=Agg for files):
-    uv run --no-sync python -m pytest tests/cpu -m unit --strict-markers -q
-    uv run --no-sync python -m pytest tests/cpu/test_file_physics.py --strict-markers -q --junitxml=validation_artifacts/micron-files.xml --basetemp=validation_artifacts/micron-files
+
+```bash
+uv run --no-sync python -m pytest tests/cpu -m unit --strict-markers -q
+uv run --no-sync python -m pytest tests/cpu/test_file_physics.py --strict-markers -q --junitxml=validation_artifacts/micron-files.xml --basetemp=validation_artifacts/micron-files
+```
 
 Previous test audit: 57 scientific tests passed with zero skips in 1221.90 s.
 The suite has only unit (23 cases) and integration (34 cases) categories,
 15 test functions and four shared fixtures. Both full four-chain convergence
-gates and all file-input physics gates passed. See test-fixture-audit.txt
-and test-fixture-audit-results.json. Prior measurements follow unchanged.
+gates and all file-input physics gates passed. See [test-fixture-audit.md](test-fixture-audit.md)
+and [test-fixture-audit-results.json](test-fixture-audit-results.json). Prior measurements follow unchanged.
 
-CURRENT STATUS: CPU-ONLY FOLLOWING THE USER'S PERFORMANCE REVIEW
+## Current status: CPU-only following the user's performance review
 
 GPU support and its dependencies were subsequently removed in favor of the
 validated NumPy/Numba float64 path. The complete CPU-only scientific suite
 passed 56 tests with zero skips in 1087.37 seconds, including four-chain
 convergence for uniform/smooth 3D fields. Subsequent exact CPU proposal
-optimizations are recorded in cpu-optimization.txt. See cpu-only-decision.txt for the decision
+optimizations are recorded in [cpu-optimization.md](cpu-optimization.md). See [cpu-only-decision.md](cpu-only-decision.md) for the decision
 and current validation. All GPU commands, timings and stage claims below
 describe the historical implementation at local commit 39c7eeb; they are not
 commands supported by the current CPU-only checkout.
@@ -38,40 +43,45 @@ commands supported by the current CPU-only checkout.
 Current isolated CPU optimization timings (float64, warmed, no profiler):
 2D 100k transitions/m36/100 production: 41.2806 -> 31.8989 s (1.294x).
 3D 20k transitions/m125/1000 production: 102.7181 -> 61.8244 s (1.661x).
-Schedules/grids are unchanged; see cpu-optimization-performance.json and
-cpu-optimized-scientific-results.json for complete conditions and validation.
+Schedules/grids are unchanged; see [cpu-optimization-performance.json](cpu-optimization-performance.json) and
+[cpu-optimized-scientific-results.json](cpu-optimized-scientific-results.json) for complete conditions and validation.
 
-HISTORICAL LOCAL RESULTS: STAGES 0-5 COMPLETE
+## Historical local results: stages 0-5 complete
 
 Branch feat/3D. Implementation, simulations, validation and commits are local.
 Sampling repair passed before Stage 5 began. Refactoring, the Typer CLI and
 CSV/Parquet input passed the complete scientific suites. uv.lock remains
 local, ignored and untracked.
 
-FINAL SCIENTIFIC RUNS
+## Final scientific runs
 
 CPU: 44 passed, 730.90 seconds.
 Required actual CUDA: 34 passed, zero skips, 1846.32 seconds.
 The suites ran separately by hardware category, concurrently for correctness:
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
-    GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
+GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+```
+
 Their durations are not hardware speed comparisons. See
-stage5-scientific-results.json for compact measurements and package versions.
+[stage5-scientific-results.json](stage5-scientific-results.json) for compact measurements and package versions.
 Both RTX3090s performed actual CuPy float64 sum(arange(32)**2)=10416.0 followed
 by explicit device synchronization. No CPU fallback or hardware skip is used.
 
-FINAL ISOLATED WARMED PERFORMANCE
+## Final isolated warmed performance
 
 All rows use float64. Times include initialization, transfers, every inference
 phase and return to host after explicit numerical/kernel warmup. Cold Python/
 CUDA import is excluded. No other inference/tests overlapped these accepted
 measurements. GPU memory is retained CuPy pool capacity, not total process VRAM.
 
-Workload          Backend Density error* MAP RMS Seconds    GPU pool bytes
-2D 100k,m36,n100   CPU  0.000e+00  1.897%   40.0194 -
-2D 100k,m36,n100   GPU  2.910e-11  1.897%   29.9972 204835328
-3D 20k,m125,n1000  CPU  6.185e-10  7.332%  102.3449 -
-3D 20k,m125,n1000  GPU  4.366e-11  5.066%   97.8870 201347584
+| Workload | Backend | Density error* | MAP RMS | Seconds | GPU pool bytes |
+| --- | --- | --- | --- | --- | --- |
+| 2D 100k,m36,n100 | CPU | 0.000e+00 | 1.897% | 40.0194 | - |
+| 2D 100k,m36,n100 | GPU | 2.910e-11 | 1.897% | 29.9972 | 204835328 |
+| 3D 20k,m125,n1000 | CPU | 6.185e-10 | 7.332% | 102.3449 | - |
+| 3D 20k,m125,n1000 | GPU | 4.366e-11 | 5.066% | 97.8870 | 201347584 |
 
 * 2D: initial full Gaussian log density against independent SciPy on the exact
 benchmark data. 3D: maximum full Gaussian plus unnormalized GP-prior error at
@@ -103,18 +113,22 @@ had undefined five-batch MC error and emitted warnings; final warmup uses five
 draws and records warmup time separately. No warning suppression was added.
 
 Commands:
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+```
+
 Reports include initialization, first-sweep and full-model warmup measurements.
 Refactoring retains the validated GPU transfer locations and kernels.
 
-VALIDATED 3D SAMPLING
+## Validated 3D sampling
 
 The repaired Metropolis sampler uses fixed prior-whitened Fisher directions,
 symmetric Gaussian blocks and recent50-sweep acceptance windows in warmup.
 Geometry and widths are frozen before equilibration and production. The exact
 likelihood, direct GP prior, RBF kernel, original regularization, interpolation
-and positivity support are preserved. See sampling-repair-mathematics.txt.
+and positivity support are preserved. See [sampling-repair-mathematics.md](sampling-repair-mathematics.md).
 
 Development and untouched held-out cases each use four independent chains per
 backend per uniform/smooth field, all20000 production draws and all278 monitored
@@ -135,8 +149,8 @@ pilot and block-size16 campaign remain recorded as failures. Longer burn-in
 alone did not fix the poor tuning and inverse-coordinate correlations, even for
 uniform diffusion. Block-size16 smooth R-hat exceeded1.01 at20000 sweeps and was
 not rounded into a pass. No seeds, priors, jitter or tolerances were changed to
-rescue it. See sampling-repair-plan.txt, sampling-blocked8-development.json,
-sampling-blocked8-heldout.json and their trace/rank figures. Concurrent
+rescue it. See [sampling-repair-plan.md](sampling-repair-plan.md), [sampling-blocked8-development.json](sampling-blocked8-development.json),
+[sampling-blocked8-heldout.json](sampling-blocked8-heldout.json) and their trace/rank figures. Concurrent
 effective-sampling rates are explicitly qualified in the repair plan; no
 convergence-based speed claim is made for failed candidates.
 
@@ -146,7 +160,7 @@ Use independent seeds and varied positive initial fields through the API.
 Historical 3D reference: proposal="relative", adaptation="legacy".
 2D defaults remain the original relative proposal and legacy schedule.
 
-FILE INPUT, CLI AND UNITS
+## File input, CLI and units
 
 All four cases pass on CPU and GPU: CSV, Parquet, renamed Parquet columns with
 micrometer-to-nanometer conversion, and legacy XY CSV. Source seed44 has20000
@@ -163,7 +177,7 @@ micrometers and micrometers squared per second. Outputs: InferredMAP.png,
 inference.npz, metadata.json and sampling.log. Computational functions remain
 independently callable. README.md documents options, mappings and examples.
 
-PRECISION AND ENVIRONMENT
+## Precision and environment
 
 Float32 FAILED the unchanged1e-4 acceptance-log-ratio error budget:
 2D stress .00116543; 100k ordinary/stress .0004924/.00998855;
@@ -179,9 +193,17 @@ group strategy follows QI2lab/opm-processing-v2 revision
 preload lists were not copied.
 
 GPU development:
-    uv sync --group dev --extra gpu
+
+```bash
+uv sync --group dev --extra gpu
+```
+
 CPU-only:
-    uv sync --group dev --no-default-groups
+
+```bash
+uv sync --group dev --no-default-groups
+```
+
 After setup retain the selected environment with uv run --no-sync. Fresh
 checkouts resolve their own ignored lockfile; it is never committed/uploaded.
 

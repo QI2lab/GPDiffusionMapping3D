@@ -1,11 +1,14 @@
-HISTORICAL STAGE 5 NUMERICAL REFACTORING
+# Refactoring validation
+
+> This record preserves the measurements and software state at the time.
+> For current usage, see the [workflow](workflow.md) and [map outputs](map-export.md).
 
 Current inference uses microns and um^2/s throughout, including saved arrays
 and figures. The nanometer conventions below describe historical validation.
 
 The GPU implementation described below was subsequently removed after the
 user's performance review. Current CPU-only installation, rationale and
-validation are recorded in cpu-only-decision.txt. GPU commands below refer
+validation are recorded in [cpu-only-decision.md](cpu-only-decision.md). GPU commands below refer
 to the historical implementation at revision 39c7eeb.
 
 Begins after Stage 4 and its required-CUDA suite passed (30 tests, zero skips).
@@ -22,21 +25,41 @@ production precision or GPU transfer location is intentionally changed here.
 of file IO, plotting and the command-line wrapper.
 
 After separating the modules:
-    uv run --no-sync python -m pytest tests/cpu/test_mathematics.py --strict-markers -q
+
+```bash
+uv run --no-sync python -m pytest tests/cpu/test_mathematics.py --strict-markers -q
+```
+
 11 passed, 9.93 s.
-    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu/test_mathematics.py --strict-markers -q
+
+```bash
+GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu/test_mathematics.py --strict-markers -q
+```
+
 11 passed, 5.25 s.
 
 After initialization, CPU posterior and warmup/production extractions:
-    uv run --no-sync python -m pytest tests/cpu/test_mathematics.py tests/cpu/test_sampling.py --strict-markers -q
+
+```bash
+uv run --no-sync python -m pytest tests/cpu/test_mathematics.py tests/cpu/test_sampling.py --strict-markers -q
+```
+
 15 passed, 26.97 s.
-    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu/test_mathematics.py tests/gpu/test_sampling.py tests/gpu/test_3d.py -k 'not physical_field_recovery and not regular_and_fine_simulator and not independent_3d_chain_means' --strict-markers -q
+
+```bash
+GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu/test_mathematics.py tests/gpu/test_sampling.py tests/gpu/test_3d.py -k 'not physical_field_recovery and not regular_and_fine_simulator and not independent_3d_chain_means' --strict-markers -q
+```
+
 18 passed, 9 deselected, zero skips, 112.99 s. The selection contains independent
 posterior quadrature and full-density acceptance/125-value geometry checks.
 The entire CPU/GPU physical suite remains required after the final CLI work.
 
 Isolated baseline before the function extractions (after file separation):
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-before-refactor.json
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-before-refactor.json
+```
+
 20k smooth-field transitions, 125 inducing values, float64, 1000 production
 sweeps after 2000 annealing + 4000 adaptation + 1000 discarded fixed-width.
 CPU full inference 103.57915 s; CUDA 97.26467 s. Compilation/context/kernel
@@ -48,10 +71,10 @@ single 1000-draw run; the four-chain 20000-draw campaigns provide that evidence.
 
 An earlier default check overlapped targeted GPU tests. Its numerical/physical
 results are valid, but its GPU timing is explicitly discarded in
-sampling-defaults-initial-check.json. The complete sequential benchmark above
+[sampling-defaults-initial-check.json](sampling-defaults-initial-check.json). The complete sequential benchmark above
 was repeated with no concurrent inference/tests before accepting its timings.
 
-FILE INPUT AND CLI VALIDATED
+## File input and CLI validated
 
 read_track_table selects pandas CSV or PyArrow Parquet by suffix. Column mapping
 and physical preparation are shared in prepare_table_tracks / prepare_tracks.
@@ -74,12 +97,20 @@ PyArrow26.0.0. Numerical dependencies and CuPy versions remain unchanged.
 uv.lock remains local, ignored and untracked.
 
 Manually inspected installed command help:
-    uv run --no-sync gpdiffusion-map --help
+
+```bash
+uv run --no-sync gpdiffusion-map --help
+```
+
 All required defaults/overrides are visible. This is not a scientific test.
 Executed both command forms on independent seed45 regular-time 3D data,
 4000 pairs, true D=1 nm^2/s:
-    uv run --no-sync gpdiffusion-map validation_artifacts/cli-example/tracks.csv --backend cpu --iterations 100 --output-dir validation_artifacts/cli-example/output
-    uv run --no-sync python -m gpdiffusion_cli validation_artifacts/cli-example/tracks.csv --backend cpu --iterations 100 --output-dir validation_artifacts/cli-example/module-output
+
+```bash
+uv run --no-sync gpdiffusion-map validation_artifacts/cli-example/tracks.csv --backend cpu --iterations 100 --output-dir validation_artifacts/cli-example/output
+uv run --no-sync python -m gpdiffusion_cli validation_artifacts/cli-example/tracks.csv --backend cpu --iterations 100 --output-dir validation_artifacts/cli-example/module-output
+```
+
 Both exited zero and saved the figure, samples and unit metadata. The updated
 module command also writes sampling.log. Inspected the actual XY-slice image:
 positions are in micrometers and diffusion in micrometers squared per second.
@@ -96,8 +127,12 @@ IDs above 2^53 expose floating-point identity loss. Unrelated columns are ignore
 No parser, API, help, snapshot, import or file-existence tests were introduced.
 
 Final full scientific runs, on separate hardware categories:
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
-    GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
+GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+```
+
 CPU full suite PASSED: 44 passed, 730.90 s, including all four file cases.
 3D file MAP RMS6.7843%; legacy XY3.5743%. Scalar MLE1.000280145 (3D) /
 .992993400 (2D), within their independent chi-square intervals. Gaussian
@@ -110,14 +145,17 @@ checks pass against the same independent simulations and error bounds.
 The 278-quantity convergence diagnostics remain below every original limit:
 maximum R-hat1.005359, minimum bulk ESS2126.68, minimum tail ESS4195.35,
 maximum mean MCSE/SD .02169. CPU/CUDA simultaneous field-mean agreement passes.
-Compact measured results: stage5-scientific-results.json.
+Compact measured results: [stage5-scientific-results.json](stage5-scientific-results.json).
 Raw chain/input artifacts stay local and ignored. These concurrent correctness
 runs are not timing comparisons.
 
-FINAL ISOLATED WARMED PERFORMANCE PASSED
+## Final isolated warmed performance passed
 
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/benchmark_refactor_2d.py --output docs/stage5-2d-performance.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/validate_sampling_defaults.py --output docs/sampling-defaults-after-refactor.json
+```
+
 Executed sequentially after both correctness suites stopped. Final warmup
 explicitly exercises floating annealing and integer temperature-one Numba
 signatures. 2D full-model warmup uses five production draws; 3D warmup uses
@@ -135,10 +173,10 @@ initialization, transfers and the complete inference after numerical warmup.
 
 Initial basic-sweep/temperature-one warming measurements remain qualified
 archives. The one-draw2D warmup's five-batch statistic was undefined and emitted
-NumPy warnings; it is recorded as null in stage5-2d-one-draw-warmup.json.
+NumPy warnings; it is recorded as null in [stage5-2d-one-draw-warmup.json](stage5-2d-one-draw-warmup.json).
 Final warming uses five draws and records only its elapsed time. No warning
 suppression or numerical-model change was made. Final steady-state reports are
-stage5-2d-performance.json and sampling-defaults-after-refactor.json.
+[stage5-2d-performance.json](stage5-2d-performance.json) and [sampling-defaults-after-refactor.json](sampling-defaults-after-refactor.json).
 
 Stage5 PASSED: all mathematical/physical CPU and actual-CUDA cases, file formats,
 column overrides, physical scaling, CLI execution and performance checks.

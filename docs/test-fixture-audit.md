@@ -1,12 +1,14 @@
-Scientific test audit
-=====================
+# Scientific test fixtures
+
+> This record preserves the measurements and software state at the time.
+> For current usage, see the [workflow](workflow.md) and [map outputs](map-export.md).
 
 Scope: the CPU-only suite on feat/3D after the CPU likelihood optimization.
 The inference implementation, target densities, priors, predeclared seeds,
 warmup, production lengths and scientific thresholds are unchanged.
 
-Organization
-------------
+## Organization
+
 Reduced collected test functions from 18 to 15 by parametrizing the common
 2D/3D GP identities and consolidating the regular/finer recovery cases into
 their existing dimension-specific recovery tests. All original scientific
@@ -24,8 +26,8 @@ There are no API, smoke, snapshot, regression, file-existence, signature or
 ordinary input-validation tests. File integration tests assert Gaussian
 likelihood, analytic MLE, chi-square bounds and ground-truth map recovery.
 
-Reuse and isolation
--------------------
+## Reuse and isolation
+
 Four session fixtures in tests/conftest.py share:
 
 * Deterministic 2D/3D GP data and geometry. Mathematical identities read these
@@ -46,12 +48,15 @@ seed or chain matching was introduced. Tiny hand-checkable arrays stay local
 where a fixture would add indirection without meaningful reuse. The obsolete
 CPU host-copy wrapper in the independent block oracle was removed.
 
-Scientific validation
----------------------
+## Scientific validation
+
 The consolidated unit selection passed: 23 passed, 34 deselected (5.72 s).
 
 Full-suite command:
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/test-fixture-audit
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/test-fixture-audit
+```
 
 Full suite: 57 passed, zero failures or skips, in 1221.90 s (20m 22s).
 Both uniform and smooth 3D convergence cases passed with four chains,
@@ -61,7 +66,7 @@ uniform 2200, smooth 2133. Minimum tail ESS: uniform 4778, smooth 4195.
 All four file-input cases passed; 3D MAP RMS was 6.78%, legacy XY 3.57%.
 Additive and blocked posterior integration checks passed using the shared
 quadrature references and independent chains. Compact numerical evidence is
-in test-fixture-audit-results.json; raw traces remain local under the ignored
+in [test-fixture-audit-results.json](test-fixture-audit-results.json); raw traces remain local under the ignored
 validation_artifacts/test-fixture-audit directory. This correctness run is
 not a performance benchmark.
 

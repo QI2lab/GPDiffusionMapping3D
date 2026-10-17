@@ -1,15 +1,20 @@
-CPU-ONLY SIMPLIFICATION AFTER THE USER'S PERFORMANCE REVIEW
+# CPU-only decision
 
-Subsequent CPU proposal optimization is documented in cpu-optimization.txt.
+> This record preserves the measurements and software state at the time.
+> For current usage, see the [workflow](workflow.md) and [map outputs](map-export.md).
+
+Subsequent CPU proposal optimization is documented in [cpu-optimization.md](cpu-optimization.md).
 The current optimized suite passes 56 tests; the 48-test results below record
 the successful CPU-only removal stage before that optimization.
 
-Decision
+## Decision
+
 The user authorized removing GPU code unless a clear acceleration path justified
 its complexity. Use the validated NumPy/Numba CPU float64 implementation.
 This decision supersedes the GPU requirements in the original stage plan.
 
-Evidence before removal (local revision 39c7eeb)
+## Evidence before removal (local revision 39c7eeb)
+
 Isolated, warmed, sequential CPU/GPU full-inference measurements:
   2D, 100000 transitions, 36 inducing values, 100 production sweeps:
     CPU 40.0194 s; GPU 29.9972 s; GPU speedup 1.334x.
@@ -32,7 +37,8 @@ mixing criterion on the smooth field, whereas size 8 passed. No approximation,
 precision change or weakened convergence criterion is introduced for speed.
 These workload measurements do not establish performance for all larger inputs.
 
-Changes
+## Changes
+
 - Remove CuPy kernels, device array management, GPU samplers and float32 code.
 - Remove the gpu extra/default dependency group and CUDA wheels from the local
   uv environment. Base scientific dependency versions are unchanged.
@@ -49,9 +55,12 @@ Changes
   Historical plot scripts only read those archives; they do not execute CUDA.
   The removed experiments are available from local Git revision 39c7eeb.
 
-Current installation and validation
-    uv sync --group dev
-    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/cpu-only-tests
+## Current installation and validation
+
+```bash
+uv sync --group dev
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/cpu-only-tests
+```
 
 The local environment sync removed eleven CUDA-related packages (including
 CuPy) and rebuilt the editable project. No system NVIDIA driver was changed.
@@ -60,7 +69,10 @@ This includes four independently initialized CPU chains per field with 20000
 production sweeps each. All 278 quantities per field meet the unchanged gates:
 R-hat < 1.01, bulk/tail ESS >= 400 and mean MCSE < 5% of posterior SD.
 
-                 Uniform             Smooth
+```text
+Uniform             Smooth
+```
+
 Maximum R-hat    1.0053586201         1.0049356698
 Minimum bulk ESS 2200.4355            2132.6351
 Minimum tail ESS 4777.5783            4195.3463
@@ -73,7 +85,7 @@ within 6.7844% RMS; legacy 2D CSV within 3.5743%. File-path Gaussian-density
 error is at most 7.276e-12. Full 2D/3D mathematics, Brownian predictions,
 regular/irregular timestamps, fine-step simulations and posterior quadrature
 also pass. Compact results and exact dependency versions are recorded in
-cpu-only-scientific-results.json; raw chains/logs remain in the ignored
+[cpu-only-scientific-results.json](cpu-only-scientific-results.json); raw chains/logs remain in the ignored
 validation_artifacts/cpu-only-tests directory.
 
 The 48-test CPU suite adds two full four-chain convergence cases and two
@@ -82,8 +94,12 @@ includes these additional scientific calculations and is not an inference
 performance comparison with the earlier suite.
 
 Additional checks actually run:
-    uv run --no-sync python -m pytest tests/cpu -m unit --strict-markers -q
-    uv run --no-sync gpdiffusion-map --help
+
+```bash
+uv run --no-sync python -m pytest tests/cpu -m unit --strict-markers -q
+uv run --no-sync gpdiffusion-map --help
+```
+
 The initial mathematical subset passed 13 tests before the two transferred
 geometry cases were added; the full suite includes them. CLI help was manually
 inspected and is not counted as scientific validation. Source review confirms

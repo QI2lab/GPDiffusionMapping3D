@@ -1,13 +1,18 @@
-EXACT POSTERIOR AND PROPOSAL GEOMETRY
+# Sampling mathematics
+
+> This record preserves the measurements and software state at the time.
+> For current usage, see the [workflow](workflow.md) and [map outputs](map-export.md).
 
 The repaired sampler keeps the original statistical model. Let R denote the
 existing regularized inducing covariance and B the inducing/observation kernel
 matrix. W=B.T R^-1 is the original inducing interpolation. The target is
 
-  pi(D_m) proportional to
-    Normal(D_m | mu, R)
-    product_j Normal(delta_r_j | 0, 2*(W D_m)_j*dt_j*I_d)
-    indicator(D_m>0 and W D_m>0).
+```text
+pi(D_m) proportional to
+  Normal(D_m | mu, R)
+  product_j Normal(delta_r_j | 0, 2*(W D_m)_j*dt_j*I_d)
+  indicator(D_m>0 and W D_m>0).
+```
 
 All dt_j are the original actual positive elapsed times. No drift, log-diffusion,
 localization-error inference, latent positions or new GP kernel is introduced.
@@ -16,7 +21,7 @@ constants are retained in saved log densities and cancel from proposal log
 ratios. The GP prior's fixed normalization constant is omitted consistently;
 saved posterior values are unnormalized log densities.
 
-ADDITIVE INVERSE-COORDINATE COMPARISON
+## Additive inverse-coordinate comparison
 
 The old proposal in alpha=R^-1 D_m uses delta_alpha=a*alpha_k*Z, with
 a~Exponential(epsilon_k), Z~Normal(0,1). It has state-dependent width and
@@ -29,15 +34,17 @@ its exponential mixture are symmetric. Its Hastings correction is zero.
 It removes vanishing relative scales but does not remove alpha correlations.
 The CPU/CUDA posterior oracles validate both moments and marginal CDF values.
 
-FIXED PRECONDITIONED BLOCK METROPOLIS
+## Fixed preconditioned block metropolis
 
 At a chain's valid initial field D_0, construct
 
-  R = L L.T
-  F = W.T diag(d / (2*(W D_0)^2)) W
-  H = I + L.T F L
-  H = G G.T
-  A = L G^-T.
+```text
+R = L L.T
+F = W.T diag(d / (2*(W D_0)^2)) W
+H = I + L.T F L
+H = G G.T
+A = L G^-T.
+```
 
 F is the expected likelihood information in inducing values. For a Gaussian
 diffusion increment, E[-d^2 logL/dD_j^2]=d/(2 D_j^2); elapsed time cancels only
@@ -50,22 +57,28 @@ may have different fixed A and still target exactly the same pi.
 
 For a block of coordinates S, propose
 
-  u ~ Normal(0, epsilon_S^2 I)
-  D'_m = D_m + A[:,S] u
-  D'_obs = D_obs + (W A[:,S]) u.
+```text
+u ~ Normal(0, epsilon_S^2 I)
+D'_m = D_m + A[:,S] u
+D'_obs = D_obs + (W A[:,S]) u.
+```
 
 This is a symmetric Gaussian move in the fixed coordinates beta=A^-1 D_m.
 The transformation determinant is constant, so it cancels from the MH ratio.
 No state-dependent proposal covariance is used in production. Reject nonpositive
 inducing or observation values. Otherwise accept when
 
-  log U < (delta_log_likelihood + delta_log_prior) / temperature.
+```text
+log U < (delta_log_likelihood + delta_log_prior) / temperature.
+```
 
 For exact prior differences the implementation precomputes R^-1 A and
 A.T R^-1 A. Thus
 
-  delta_log_prior = -u.T A[:,S].T R^-1 (D_m-mu)
-                    -.5*u.T (A[:,S].T R^-1 A[:,S]) u.
+```text
+delta_log_prior = -u.T A[:,S].T R^-1 (D_m-mu)
+                  -.5*u.T (A[:,S].T R^-1 A[:,S]) u.
+```
 
 The likelihood difference is the original Gaussian algebra, evaluated on the
 complete observations with actual dt_j and d=3. CUDA parallelizes this sum;
@@ -73,7 +86,7 @@ dependent blocks remain sequential. A random block permutation is drawn each
 sweep. Each MH block preserves the temperature-one target, as does their
 sequential composition and mixture over permutations.
 
-WARMUP AND PRODUCTION
+## Warmup and production
 
 During warmup only, update log epsilon every 50 sweeps from the acceptance
 fraction in that recent window, using gain 2*(1+window_index)^(-.6). Targets

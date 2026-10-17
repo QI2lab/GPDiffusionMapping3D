@@ -32,6 +32,7 @@ Paper = "https://doi.org/10.1016/j.bpr.2024.100194"
 
 [dependency-groups]
 dev = ["pytest>=8"]
+docs = ["mkdocs-material>=9.6"]
 
 [tool.uv]
 default-groups = []

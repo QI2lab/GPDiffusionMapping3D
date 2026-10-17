@@ -1,4 +1,7 @@
-SAMPLING REPAIR AUTHORIZATION AND GATES
+# Sampling repair plan
+
+> This record preserves the measurements and software state at the time.
+> For current usage, see the [workflow](workflow.md) and [map outputs](map-export.md).
 
 The user approved the proposed sampling repair plan with "Proceed" after the
 uniform/smooth burn-in investigation. This authorizes the staged changes below,
@@ -88,7 +91,7 @@ maximum split R-hat CPU/GPU 2.861/3.035 uniform, 2.946/2.955 smooth; minimum bul
 ESS about 2.26-2.30. This two-chain 1000-sweep pilot is not a convergence pass
 or evidence that additive proposals can never converge; it motivates the
 predeclared blocked candidate rather than further long coordinate-wise runs.
-Full numerical evidence is in sampling-additive-pilot.json; raw traces are local.
+Full numerical evidence is in [sampling-additive-pilot.json](sampling-additive-pilot.json); raw traces are local.
 
 Blocked candidate: small posterior oracles plus actual proposal-density tests
 passed 15 CPU cases (29.89 s, one Numba noncontiguous-array performance warning)
@@ -122,10 +125,14 @@ production moves. Independent full-Gaussian posterior recomputation differs by
 at most 1.608e-9, within the conditioning-derived bounds. CPU/CUDA central-field
 mean agreement passes. GPU pool capacity is 201349120 bytes per worker.
 Concurrent per-chain durations (~402-412 s) are not isolated speed benchmarks.
-Report: sampling-blocked8-development.json; raw unthinned traces stay local.
+Report: [sampling-blocked8-development.json](sampling-blocked8-development.json); raw unthinned traces stay local.
 
 Executed development summary:
-    uv run --no-sync python -u scripts/run_sampling_repair.py --proposal blocked --block-size 8 --directory validation_artifacts/repair-blocked8-development --output docs/sampling-blocked8-development.json --summarize-only
+
+```bash
+uv run --no-sync python -u scripts/run_sampling_repair.py --proposal blocked --block-size 8 --directory validation_artifacts/repair-blocked8-development --output docs/sampling-blocked8-development.json --summarize-only
+```
+
 It reused all saved chains after the original command session was lost; no
 chain was selectively rerun. The summary exited zero. A fresh actual CuPy
 float64 sum(arange(32)**2), followed by device synchronization, returned
@@ -142,12 +149,19 @@ smooth CUDA         1.004915     2101.07        4113.03        .02181
 All sixteen MAP RMS errors are 3.426-6.326%, zero unupdated proposal blocks,
 full-posterior recomputation within the original conditioning-derived bounds,
 and CPU/CUDA mean agreement passes. Every original production draw is retained.
-Report: sampling-blocked8-heldout.json; figures/sampling-blocked8-heldout.png.
+Report: [sampling-blocked8-heldout.json](sampling-blocked8-heldout.json); [figures/sampling-blocked8-heldout.png](figures/sampling-blocked8-heldout.png).
 Command exited zero:
-    GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/run_sampling_repair.py --proposal blocked --block-size 8 --heldout --directory validation_artifacts/repair-blocked8-heldout --output docs/sampling-blocked8-heldout.json
+
+```bash
+GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -u scripts/run_sampling_repair.py --proposal blocked --block-size 8 --heldout --directory validation_artifacts/repair-blocked8-heldout --output docs/sampling-blocked8-heldout.json
+```
 
 Full required-CUDA suite PASSED: 30 passed, zero skips, 2044.70 seconds.
-    GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
+
+```bash
+GPD_REQUIRE_GPU=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q
+```
+
 This includes fresh four-chain convergence tests for both fields, independent
 posterior quadrature, prescribed proposal densities, and 2D/3D physical checks.
 Together with the separate 40-test CPU pass and held-out confirmation, this

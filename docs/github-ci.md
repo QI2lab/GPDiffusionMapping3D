@@ -1,5 +1,4 @@
-GitHub scientific CI
-====================
+# GitHub scientific CI
 
 Scientific helpers and standalone validation/benchmark tools live under
 tests/support/; no CI tests depend on a top-level scripts directory.
@@ -9,10 +8,12 @@ pushes to main/master, avoiding duplicate feature-branch push and PR runs.
 It retains 56 of the 58 scientific cases, split into four parallel
 Linux/Python-3.12 jobs:
 
-    unit         23 cases: independent mathematical identities and proposals
-    posterior     4 cases: additive/blocked chains versus refined quadrature
-    physics      24 cases: Brownian laws and 2D/3D ground-truth field recovery
-    files         5 cases: per-cell CSV/Parquet, OME-TIFF, overrides and legacy XY
+```text
+unit         23 cases: independent mathematical identities and proposals
+posterior     4 cases: additive/blocked chains versus refined quadrature
+physics      24 cases: Brownian laws and 2D/3D ground-truth field recovery
+files         5 cases: per-cell CSV/Parquet, OME-TIFF, overrides and legacy XY
+```
 
 All recovery seeds and finer-step cases are retained. Only the two full 3D
 convergence cases are deferred from this shorter workflow. No inference code,
@@ -57,8 +58,8 @@ uv.lock, the virtual environment and raw trajectory/sample archives are not
 uploaded. Retention is seven days. Superseded runs for the same event/ref are
 cancelled; different event types do not cancel each other's required checks.
 
-Branch protection
------------------
+## Branch protection
+
 The normal checks are named Scientific / unit, Scientific / posterior,
 Scientific / physics and Scientific / files. These are suitable required PR
 checks. Convergence / uniform and Convergence / smooth are opt-in;
@@ -66,8 +67,8 @@ do not require their workflow unconditionally for every PR. Request and inspect
 both convergence checks on the final revision when preparing to merge.
 This change does not modify repository branch protection or bypass permissions.
 
-Activation and validation
--------------------------
+## Activation and validation
+
 Workflow files must be pushed to GitHub before hosted runs can occur. Local
 workflow linting and exact scientific job execution are recorded separately
 from any hosted result. The previous full suite passed 57 cases in 1221.90 s;
@@ -83,17 +84,17 @@ with unchanged full protocols; they were not rerun for workflow-only changes.
 A collection audit confirmed the four short selections are disjoint and their
 union excludes exactly the two full convergence cases. Both workflows passed
 actionlint v1.7.12. Published action refs were checked and pinned to commits.
-Current local selections and measurements are in github-ci-results.json.
+Current local selections and measurements are in [github-ci-results.json](github-ci-results.json).
 
 Automatic cell batching adds a fifth file case. All 56 shorter cases passed
 locally with zero failures, errors or skips; the five file cases now recover
 two distinct cell fields each, including repeated particle identifiers and
 separate spatial domains. File validation took 392.65 s; each cell retains the
 validated warmup and production schedule. Current measurements and physical
-errors are in cell-batch-validation.json. Full convergence was not rerun.
+errors are in [cell-batch-validation.json](cell-batch-validation.json). Full convergence was not rerun.
 
-Fresh-runner correction
------------------------
+## Fresh-runner correction
+
 Hosted run 38914429641 passed unit, posterior and physics, but its files job
 failed before inference: pytest could not create --basetemp because its ignored
 validation_artifacts parent did not exist. Prior local runs had that directory
@@ -101,7 +102,7 @@ already. Both workflows now explicitly create the parent before pytest.
 The files job retains all four scientific cases and their original thresholds.
 CI also installs the package non-editably, so tests exercise the built package
 instead of relying on loose modules from the checkout. The revised layout and
-fresh-directory validation are recorded in package-validation.json.
+fresh-directory validation are recorded in [package-validation.json](package-validation.json).
 
 References checked during implementation:
 https://docs.astral.sh/uv/guides/integration/github/
