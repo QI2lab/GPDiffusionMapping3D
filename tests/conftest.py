@@ -6,8 +6,8 @@ import io
 import numpy as np
 import pytest
 
-import functions as f
-import model
+from gpdiffusionmapping import functions as f
+from gpdiffusionmapping import model
 from tests.support.posterior_oracle import problem, reference
 from tests.support.validate_2d import parameters, simulate as simulate_2d
 from tests.support.validate_3d import prepared, simulate as simulate_3d

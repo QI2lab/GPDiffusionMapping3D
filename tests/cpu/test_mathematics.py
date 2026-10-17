@@ -4,8 +4,7 @@ import numpy as np
 import pytest
 from scipy import stats
 
-import functions as f
-
+from gpdiffusionmapping import functions as f
 pytestmark = pytest.mark.unit
 
 
@@ -175,7 +174,7 @@ def test_whitened_block_step_against_full_density(seed, posterior_problems):
 @pytest.mark.parametrize("dimensions", [2, 3])
 @pytest.mark.parametrize("change", [0.0, 1e-8, 0.2])
 def test_cached_observation_proposal_against_gaussian_density(dimensions, change):
-    from metropolis import observation_log_terms, proposal_likelihood_difference
+    from gpdiffusionmapping.metropolis import observation_log_terms, proposal_likelihood_difference
 
     # Vary diffusion and elapsed time independently over a broad physical range.
     field = np.array([1e-8, 0.6, 0.9, 1e8])
@@ -216,7 +215,7 @@ def test_cached_observation_proposal_against_gaussian_density(dimensions, change
 
 @pytest.mark.parametrize("invalid", [0.0, -0.1])
 def test_cached_proposal_rejects_zero_probability_diffusion(invalid):
-    from metropolis import observation_log_terms, proposal_likelihood_difference
+    from gpdiffusionmapping.metropolis import observation_log_terms, proposal_likelihood_difference
 
     field = np.array([0.5, 0.8])
     energy = np.array([0.2, 0.3])

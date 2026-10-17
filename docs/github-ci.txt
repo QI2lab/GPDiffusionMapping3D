@@ -41,8 +41,10 @@ all 57 cases before merging, use the 55 ordinary PR checks plus the explicitly
 requested convergence checks on the same PR revision.
 
 Jobs use CPU float64, Ubuntu 24.04 and uv's managed Python 3.12. Each checkout
-resolves its own ignored uv.lock using uv sync --group dev, then executes
-uv run --no-sync. No --locked/--frozen assumption or CUDA dependency is added.
+resolves its own ignored uv.lock using uv sync --group dev --no-editable,
+then executes uv run --no-sync against the installed package. Application
+modules live in src/gpdiffusionmapping/; tests use package-qualified imports.
+No --locked/--frozen assumption or CUDA dependency is added.
 The setup-uv cache is keyed from pyproject.toml with a separate suffix per
 matrix job. BLAS/OpenMP threads are fixed at one and Matplotlib uses Agg.
 Independent chains may run concurrently; dependent proposals stay sequential.
@@ -81,6 +83,17 @@ A collection audit confirmed the four short selections are disjoint and their
 union excludes exactly the two full convergence cases. Both workflows passed
 actionlint v1.7.12. Published action refs were checked and pinned to commits.
 Current local selections and measurements are in github-ci-results.json.
+
+Fresh-runner correction
+-----------------------
+Hosted run 38914429641 passed unit, posterior and physics, but its files job
+failed before inference: pytest could not create --basetemp because its ignored
+validation_artifacts parent did not exist. Prior local runs had that directory
+already. Both workflows now explicitly create the parent before pytest.
+The files job retains all four scientific cases and their original thresholds.
+CI also installs the package non-editably, so tests exercise the built package
+instead of relying on loose modules from the checkout. The revised layout and
+fresh-directory validation are recorded in package-validation.json.
 
 References checked during implementation:
 https://docs.astral.sh/uv/guides/integration/github/

@@ -16,9 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tests.support.validate_2d import inference
 from tests.support.validate_sampling_defaults import measure
 from tests.support.validate_3d import prepared
-import model
-
-
+from gpdiffusionmapping import model
 def main(directory: Path, output: Path, case: str):
     """Save full profiles and compact timings, checking simulated recovery."""
     directory.mkdir(parents=True, exist_ok=True)

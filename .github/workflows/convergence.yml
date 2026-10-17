@@ -43,8 +43,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: pyproject.toml
           cache-suffix: convergence-${{ matrix.field }}
+      - name: Prepare scientific output directory
+        run: mkdir -p validation_artifacts
       - name: Install CPU environment
-        run: uv sync --group dev
+        run: uv sync --group dev --no-editable
       - name: Check four independent full 3D chains
         run: >-
           uv run --no-sync python -m pytest

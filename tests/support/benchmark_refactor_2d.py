@@ -12,9 +12,7 @@ from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tests.support.validate_2d import benchmark, inference, parameters, simulate
-import functions as f
-
-
+from gpdiffusionmapping import functions as f
 def density_and_memory(backend: str) -> dict:
     """Check the benchmark's initial Gaussian density against SciPy."""
     data = simulate(100000, 41, True)

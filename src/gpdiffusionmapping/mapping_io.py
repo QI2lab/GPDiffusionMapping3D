@@ -5,10 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
-from data_reader import read_tracks
-import model
-
-
+from .data_reader import read_tracks
+from . import model
 def infer_file(
     path: str | Path, *, dimensions: int = 3, backend: str = "cpu",
     dtype: str = "float64", iterations: int = 1000, scale: float = 1,
@@ -69,8 +67,7 @@ def save_results(
         Directory containing InferredMAP.png, inference.npz and metadata.json.
     """
     import matplotlib.pyplot as plt
-    import plotting
-
+    from . import plotting
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     figure = plotting.plot(variables, samples, posterior, data)

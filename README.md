@@ -3,7 +3,7 @@
 ## Introduction
 
 Infer spatial diffusion maps from linked particle trajectories using Gaussian
-processes. This fork extends the method described in the
+processes. This project extends the method described in the
 [original paper](https://doi.org/10.1016/j.bpr.2024.100194) and implemented in
 [LabPresse/GPDiffusionMapping](https://github.com/LabPresse/GPDiffusionMapping).
 Example and experimental datasets are in `data/`.
@@ -29,7 +29,7 @@ timestamps in seconds.
 ```bash
 uv run --no-sync gpdiffusion-map tracks.csv
 uv run --no-sync gpdiffusion-map tracks.parquet --output-dir results
-uv run --no-sync gpdiffusion-map --help
+uv run --no-sync python -m gpdiffusionmapping --help
 ```
 
 The command saves the inferred map, samples and metadata. Use `--help` for
@@ -47,7 +47,7 @@ column overrides, unit conversion and legacy 2D input options.
 
 Open issues and pull requests against
 [dpshepherd/GPDiffusionMapping](https://github.com/dpshepherd/GPDiffusionMapping),
-with PRs targeting this fork's `main` branch.
+with PRs targeting this repository's `main` branch.
 
 ```bash
 uv sync --group dev

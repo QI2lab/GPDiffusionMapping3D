@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import numba as nb
 import numpy as np
 
-from gp_math import covMat, log_likelihood, log_prior
+from .gp_math import covMat, log_likelihood, log_prior
 
 
 def initialization(variables, data, backend="cpu", dtype="float64"):

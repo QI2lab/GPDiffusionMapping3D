@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 from scipy import stats
 
-import data_reader
-import functions as f
-import model
+from gpdiffusionmapping import data_reader
+from gpdiffusionmapping import functions as f
+from gpdiffusionmapping import model
 from tests.support.validate_3d import physics, recovery, SEEDS
 
 

@@ -46,8 +46,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: pyproject.toml
           cache-suffix: ${{ matrix.suite }}
+      - name: Prepare scientific output directory
+        run: mkdir -p validation_artifacts
       - name: Install CPU environment
-        run: uv sync --group dev
+        run: uv sync --group dev --no-editable
       - name: Run scientific tests
         run: >-
           uv run --no-sync python -m pytest ${{ matrix.args }}

@@ -9,9 +9,9 @@ import numpy as np
 from scipy import special, stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import data_reader
-import model
-import functions as f
+from gpdiffusionmapping import data_reader
+from gpdiffusionmapping import model
+from gpdiffusionmapping import functions as f
 from tests.support.sampling_statistics import diagnose, passes
 
 

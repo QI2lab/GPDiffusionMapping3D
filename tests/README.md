@@ -4,6 +4,9 @@
 in `conftest.py`; `support/` contains their simulation oracles, standalone
 validation protocols, benchmarks and historical diagnostic plots.
 
+Install the package with `uv sync --group dev` before running these tools.
+Application code lives in `src/gpdiffusionmapping/`; tests import that package.
+
 Run the shorter scientific suite from the repository root:
 
 ```bash

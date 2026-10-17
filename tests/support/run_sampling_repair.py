@@ -16,10 +16,8 @@ from scipy import stats
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tests.support.validate_3d import prepared, truth
 from tests.support.sampling_statistics import diagnose, passes
-import functions as f
-import model
-
-
+from gpdiffusionmapping import functions as f
+from gpdiffusionmapping import model
 def run_chain(
     directory, backend, feature, index, proposal, pilot, heldout, block_size=16
 ):

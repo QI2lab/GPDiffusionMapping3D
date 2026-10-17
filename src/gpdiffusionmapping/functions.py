@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from gp_math import (
+from .gp_math import (
     expCooling,
     logNormpdf,
     indexShuffler,
@@ -13,8 +13,8 @@ from gp_math import (
     proposal_log_ratio,
     seed_sampler,
 )
-from gp_initialization import initialization
-from metropolis import (
+from .gp_initialization import initialization
+from .metropolis import (
     diffusionPointSamplerSA_nb,
     diffusionPointSampler,
     prepare_block_proposals,

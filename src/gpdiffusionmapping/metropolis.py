@@ -3,7 +3,7 @@
 import numba as nb
 import numpy as np
 
-from gp_math import indexShuffler, logNormpdf
+from .gp_math import indexShuffler, logNormpdf
 
 
 @nb.njit(cache=True)

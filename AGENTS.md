@@ -11,6 +11,11 @@ this decision; their results remain historical evidence in `docs/`.
   CUDA dependencies or GPU execution without a new user request.
 - Preserve the validated 2D sampler and repaired eight-coordinate blocked 3D
   sampler, posterior, positivity rules and warmup/production schedules.
+- Application code lives in `src/gpdiffusionmapping/`. Use package-qualified
+  Python imports and relative imports within the package. Run inference with
+  `gpdiffusion-map` or `python -m gpdiffusionmapping`; root-level launchers and
+  loose numerical modules are retired. Tests and development helpers stay in
+  `tests/` and are excluded from the installed package.
 - Install with `uv sync --group dev` and run the scientific suite with
   `uv run --no-sync python -m pytest tests/cpu --strict-markers -q`.
 - Keep mathematical, physical and independent multi-chain convergence checks.

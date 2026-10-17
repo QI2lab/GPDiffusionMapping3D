@@ -11,9 +11,8 @@ import numpy as np
 from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import functions as f
-import model
-
+from gpdiffusionmapping import functions as f
+from gpdiffusionmapping import model
 SEEDS = (41, 42, 43)
 # Numerical bounds: float64 epsilon times accumulation/conditioning. Recovery:
 # <=10% RMS in a predeclared densely sampled central square, across all seeds.

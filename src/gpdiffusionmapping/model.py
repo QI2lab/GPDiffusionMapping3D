@@ -5,8 +5,7 @@ import time
 
 import numpy as np
 
-import functions
-
+from . import functions
 # Existing GP and sampler parameter defaults
 PARAMETERS = {
     # General Knowns

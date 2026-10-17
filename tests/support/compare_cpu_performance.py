@@ -1,6 +1,7 @@
 """Compare an archived CPU sampler with the optimized sampler, without profiling."""
 
 import argparse
+import ast
 import contextlib
 import importlib.util
 import io
@@ -11,8 +12,8 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import functions as f
-import model
+from gpdiffusionmapping import functions as f
+from gpdiffusionmapping import model
 from tests.support.validate_2d import inference, simulate, parameters
 from tests.support.validate_3d import prepared
 from tests.support.validate_sampling_defaults import measure
@@ -25,17 +26,35 @@ def main(revision: str, directory: Path, output: Path):
     inference option. Initialization, model orchestration and GP mathematics
     are unchanged between the two revisions; only the sampler is substituted.
     """
-    unchanged = subprocess.check_output([
-        "git", "diff", revision, "--", "model.py", "gp_math.py",
-        "gp_initialization.py",
-    ], text=True)
-    if unchanged:
-        raise ValueError("Shared model/mathematics changed; use separate checkouts")
+    for name in ("model.py", "gp_math.py", "gp_initialization.py"):
+        archived = subprocess.check_output(
+            ["git", "show", f"{revision}:{name}"], text=True
+        )
+        current = Path(model.__file__).with_name(name).read_text()
+        trees = [ast.parse(source) for source in (archived, current)]
+        # Package qualification changes imports, not the shared mathematics.
+        for tree in trees:
+            for index, node in enumerate(tree.body):
+                if isinstance(node, ast.ImportFrom):
+                    if node.module is None:
+                        tree.body[index] = ast.Import(names=node.names)
+                    else:
+                        node.level = 0
+                        node.module = node.module.removeprefix(
+                            "gpdiffusionmapping."
+                        )
+        if ast.dump(trees[0]) != ast.dump(trees[1]):
+            raise ValueError(
+                "Shared model/mathematics changed; use separate checkouts"
+            )
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / "gpd_baseline_metropolis.py"
-    path.write_text(subprocess.check_output([
-        "git", "show", f"{revision}:metropolis.py",
-    ], text=True))
+    archived_sampler = subprocess.check_output(
+        ["git", "show", f"{revision}:metropolis.py"], text=True
+    )
+    path.write_text(archived_sampler.replace(
+        "from gp_math import ", "from gpdiffusionmapping.gp_math import "
+    ))
     sys.path.insert(0, str(directory.resolve()))
     specification = importlib.util.spec_from_file_location(
         "gpd_baseline_metropolis", path

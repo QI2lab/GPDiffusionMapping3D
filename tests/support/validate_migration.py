@@ -9,9 +9,7 @@ import numpy as np
 from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import functions
-
-
+from gpdiffusionmapping import functions
 def main():
     """Validate a fixed simulation without storing a frozen-output oracle."""
     rng = np.random.default_rng(20261016)

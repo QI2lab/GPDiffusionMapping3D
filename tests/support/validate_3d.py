@@ -10,10 +10,9 @@ import numpy as np
 from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import data_reader
-import functions as f
-import model
-
+from gpdiffusionmapping import data_reader
+from gpdiffusionmapping import functions as f
+from gpdiffusionmapping import model
 SEEDS = (41, 42, 43)
 
 

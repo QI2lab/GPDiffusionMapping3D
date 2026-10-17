@@ -7,7 +7,7 @@ from typing import Annotated
 
 import typer
 
-from mapping_io import infer_file, save_results
+from .mapping_io import infer_file, save_results
 
 
 class Dimensions(str, Enum):

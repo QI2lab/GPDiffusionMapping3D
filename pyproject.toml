@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "Gaussian-process diffusion mapping from particle trajectories"
 readme = "README.md"
 requires-python = ">=3.12"
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "numpy==2.0.2",
     "numba==0.60.0",
@@ -20,7 +21,11 @@ dependencies = [
 ]
 
 [project.scripts]
-gpdiffusion-map = "gpdiffusion_cli:app"
+gpdiffusion-map = "gpdiffusionmapping.cli:app"
+
+[project.urls]
+Repository = "https://github.com/dpshepherd/GPDiffusionMapping"
+Issues = "https://github.com/dpshepherd/GPDiffusionMapping/issues"
 
 [dependency-groups]
 dev = ["pytest>=8"]
@@ -28,12 +33,10 @@ dev = ["pytest>=8"]
 [tool.uv]
 default-groups = []
 
-[tool.setuptools]
-py-modules = [
-    "data_reader", "functions", "gp_math", "gp_initialization",
-    "metropolis", "model", "plotting",
-    "mapping_io", "gpdiffusion_cli",
-]
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["gpdiffusionmapping*"]
+namespaces = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests/cpu"]

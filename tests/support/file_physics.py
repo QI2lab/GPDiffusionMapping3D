@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-import functions as f
-from mapping_io import infer_file
+from gpdiffusionmapping import functions as f
+from gpdiffusionmapping.mapping_io import infer_file
 from tests.support.validate_3d import simulate
 
 

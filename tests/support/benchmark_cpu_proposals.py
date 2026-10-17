@@ -13,8 +13,8 @@ import numpy as np
 from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import functions as f
-import model
+from gpdiffusionmapping import functions as f
+from gpdiffusionmapping import model
 from tests.support.validate_3d import prepared
 
 
