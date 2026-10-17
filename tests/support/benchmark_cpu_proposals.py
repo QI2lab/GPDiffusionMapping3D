@@ -12,10 +12,10 @@ import numba as nb
 import numpy as np
 from scipy import stats
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import functions as f
 import model
-from scripts.validate_3d import prepared
+from tests.support.validate_3d import prepared
 
 
 @nb.njit(cache=True)

@@ -12,10 +12,10 @@ import pstats
 import resource
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from scripts.validate_2d import inference
-from scripts.validate_sampling_defaults import measure
-from scripts.validate_3d import prepared
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from tests.support.validate_2d import inference
+from tests.support.validate_sampling_defaults import measure
+from tests.support.validate_3d import prepared
 import model
 
 

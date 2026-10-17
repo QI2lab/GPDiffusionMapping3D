@@ -5,11 +5,13 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import sys
 
 import numpy as np
 from scipy import stats
 
-from validate_2d import benchmark, inference, parameters, simulate
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from tests.support.validate_2d import benchmark, inference, parameters, simulate
 import functions as f
 
 

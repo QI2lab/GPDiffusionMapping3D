@@ -10,12 +10,12 @@ from pathlib import Path
 import subprocess
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import functions as f
 import model
-from scripts.validate_2d import inference, simulate, parameters
-from scripts.validate_3d import prepared
-from scripts.validate_sampling_defaults import measure
+from tests.support.validate_2d import inference, simulate, parameters
+from tests.support.validate_3d import prepared
+from tests.support.validate_sampling_defaults import measure
 
 
 def main(revision: str, directory: Path, output: Path):

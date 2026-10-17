@@ -9,7 +9,7 @@ from scipy import stats
 
 import functions as f
 from mapping_io import infer_file
-from scripts.validate_3d import simulate
+from tests.support.validate_3d import simulate
 
 
 CASES = ("csv", "parquet", "parquet-overrides", "legacy-csv")

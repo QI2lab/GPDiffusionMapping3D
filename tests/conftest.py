@@ -8,9 +8,9 @@ import pytest
 
 import functions as f
 import model
-from scripts.posterior_oracle import problem, reference
-from scripts.validate_2d import parameters, simulate as simulate_2d
-from scripts.validate_3d import prepared, simulate as simulate_3d
+from tests.support.posterior_oracle import problem, reference
+from tests.support.validate_2d import parameters, simulate as simulate_2d
+from tests.support.validate_3d import prepared, simulate as simulate_3d
 
 
 @pytest.fixture(scope="session")

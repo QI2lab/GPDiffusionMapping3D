@@ -13,9 +13,9 @@ import time
 import numpy as np
 from scipy import stats
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from scripts.validate_3d import prepared, truth
-from scripts.sampling_statistics import diagnose, passes
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from tests.support.validate_3d import prepared, truth
+from tests.support.sampling_statistics import diagnose, passes
 import functions as f
 import model
 

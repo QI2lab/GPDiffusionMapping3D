@@ -10,9 +10,9 @@ import time
 import numpy as np
 from scipy import stats
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import model
-from scripts.validate_3d import prepared, truth
+from tests.support.validate_3d import prepared, truth
 
 
 def measure(backend: str) -> dict:

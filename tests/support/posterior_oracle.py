@@ -8,11 +8,11 @@ import sys
 import numpy as np
 from scipy import special, stats
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import data_reader
 import model
 import functions as f
-from scripts.sampling_statistics import diagnose, passes
+from tests.support.sampling_statistics import diagnose, passes
 
 
 def problem(dimensions):

@@ -1,6 +1,9 @@
 GitHub scientific CI
 ====================
 
+Scientific helpers and standalone validation/benchmark tools live under
+tests/support/; no CI tests depend on a top-level scripts directory.
+
 Scientific CI (.github/workflows/scientific-ci.yml) runs on pushes and pull
 requests. It retains 55 of the 57 scientific cases, split into four parallel
 Linux/Python-3.12 jobs:

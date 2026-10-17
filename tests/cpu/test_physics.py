@@ -1,7 +1,7 @@
 """Brownian predictions and ground-truth field recovery using actual CPU."""
 
 import pytest
-from scripts.validate_2d import brownian_checks, inference, SEEDS
+from tests.support.validate_2d import brownian_checks, inference, SEEDS
 
 pytestmark = pytest.mark.integration
 

@@ -167,7 +167,7 @@ def test_single_metropolis_proposal_against_full_density(seed, additive):
 
 @pytest.mark.parametrize("seed", [11, 12, 13])
 def test_whitened_block_step_against_full_density(seed, posterior_problems):
-    from scripts.posterior_oracle import validate_block_step
+    from tests.support.posterior_oracle import validate_block_step
 
     validate_block_step("cpu", seed, prepared_problem=posterior_problems[2])
 

@@ -1,7 +1,7 @@
 """Actual CPU posterior sampling against independently integrated densities."""
 
 import pytest
-from scripts.posterior_oracle import validate
+from tests.support.posterior_oracle import validate
 
 pytestmark = pytest.mark.integration
 

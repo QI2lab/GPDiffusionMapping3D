@@ -10,7 +10,7 @@ from scipy import stats
 import data_reader
 import functions as f
 import model
-from scripts.validate_3d import physics, recovery, SEEDS
+from tests.support.validate_3d import physics, recovery, SEEDS
 
 
 @pytest.mark.unit
@@ -98,7 +98,7 @@ def test_independent_3d_chains_converge(tmp_path, monkeypatch, feature):
     import json
     import multiprocessing
 
-    from scripts.run_sampling_repair import run_chain, summarize
+    from tests.support.run_sampling_repair import run_chain, summarize
 
     monkeypatch.setenv("OPENBLAS_NUM_THREADS", "1")
     monkeypatch.setenv("OMP_NUM_THREADS", "1")

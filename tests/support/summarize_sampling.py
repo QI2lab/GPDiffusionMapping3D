@@ -3,9 +3,13 @@
 import argparse
 import json
 from pathlib import Path
+import sys
+
 import numpy as np
 from scipy.stats import t
-from validate_3d import sampling_diagnostics, truth
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from tests.support.validate_3d import sampling_diagnostics, truth
 
 
 def summarize(directory: Path, output: Path):

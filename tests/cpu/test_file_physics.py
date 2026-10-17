@@ -2,7 +2,7 @@
 
 import pytest
 
-from scripts.file_physics import CASES, validate_file_physics
+from tests.support.file_physics import CASES, validate_file_physics
 
 pytestmark = pytest.mark.integration
 
