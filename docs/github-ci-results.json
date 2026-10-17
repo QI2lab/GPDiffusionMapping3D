@@ -106,5 +106,7 @@
   "workflow_validation": "actionlint v1.7.12: both workflows passed; published action commits verified against GitHub refs",
   "deferred_convergence_evidence": "docs/test-fixture-audit-results.json: both cases passed with full original protocols before this workflow-only change; not rerun for this change",
   "hosted_execution": "Not run; workflow commits are local until explicitly authorized for push",
-  "platform": "Local Linux x86_64, Python 3.12; hosted Ubuntu 24.04 remains untested until activation"
+  "platform": "Local Linux x86_64, Python 3.12; hosted Ubuntu 24.04 remains untested until activation",
+  "convergence_trigger": "Explicit run-convergence label addition on an open, non-draft PR only; no scheduled, push, synchronize or dispatch execution",
+  "trigger_validation": "actionlint and manual event-condition review; hosted label event not executed"
 }

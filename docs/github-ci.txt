@@ -18,17 +18,24 @@ new testing dependency is needed. No test failure is allowed to continue.
 
 3D convergence (.github/workflows/convergence.yml) runs the uniform and smooth
 cases in parallel, each still using four independent chains, 20,000 production
-sweeps per chain and all 278 monitored quantities. It runs automatically for
-pull requests changing numerical code, scientific tests/helpers, dependencies
-or workflows, and matching pushes to main/master. These checks are additional
-scientific gates for such changes; they are not made optional by shortening
-the normal workflow. Path filters are declared explicitly in that workflow.
+sweeps per chain and all 278 monitored quantities. It runs only when someone
+adds the run-convergence label to an open, non-draft PR that is ready to merge.
+There are no push, schedule, numerical-path or workflow_dispatch triggers for
+full convergence. Marking a PR ready for review does not itself request a run.
 
-Both workflows run nightly at 06:17 UTC and support manual workflow_dispatch.
-Together the nightly jobs exercise all 57 cases. GitHub schedules run only
-from the default branch, so nightly execution starts after these workflow
-files reach that branch. Each manual workflow runs its own selection; run
-both when requesting all 57 cases manually.
+Before requesting convergence, finish changes, mark the PR non-draft, then add
+the run-convergence label (create that repository label once if needed). A
+label added while the PR is draft does not run the tests; remove and re-add it
+after the PR is ready. A retained label does not automatically rerun convergence
+on later commits. To request a fresh run for the latest revision, remove and
+re-add the label, and verify both results belong to that revision before
+merging. GitHub's non-draft flag means ready for review; the requester decides
+whether the PR is actually ready to merge.
+
+The shorter Scientific CI workflow still runs automatically on pushes/PRs and
+supports workflow_dispatch. Neither workflow has a nightly schedule. To check
+all 57 cases before merging, use the 55 ordinary PR checks plus the explicitly
+requested convergence checks on the same PR revision.
 
 Jobs use CPU float64, Ubuntu 24.04 and uv's managed Python 3.12. Each checkout
 resolves its own ignored uv.lock using uv sync --group dev, then executes
@@ -48,10 +55,9 @@ Branch protection
 -----------------
 The normal checks are named Scientific / unit, Scientific / posterior,
 Scientific / physics and Scientific / files. These are suitable required PR
-checks. Convergence / uniform and Convergence / smooth are path-filtered;
-do not require them unconditionally for every PR, since a non-triggered
-workflow could leave an unconditional required check pending. Review numerical
-changes only after their automatically triggered convergence jobs pass.
+checks. Convergence / uniform and Convergence / smooth are opt-in;
+do not require their workflow unconditionally for every PR. Request and inspect
+both convergence checks on the final revision when preparing to merge.
 This change does not modify repository branch protection or bypass permissions.
 
 Activation and validation

@@ -2,33 +2,7 @@ name: 3D convergence
 
 on:
   pull_request:
-    paths:
-      - 'metropolis.py'
-      - 'model.py'
-      - 'functions.py'
-      - 'gp_*.py'
-      - 'data_reader.py'
-      - 'pyproject.toml'
-      - '.python-version'
-      - 'tests/**'
-      - 'scripts/**'
-      - '.github/workflows/**'
-  push:
-    branches: [main, master]
-    paths:
-      - 'metropolis.py'
-      - 'model.py'
-      - 'functions.py'
-      - 'gp_*.py'
-      - 'data_reader.py'
-      - 'pyproject.toml'
-      - '.python-version'
-      - 'tests/**'
-      - 'scripts/**'
-      - '.github/workflows/**'
-  schedule:
-    - cron: '17 6 * * *'
-  workflow_dispatch:
+    types: [labeled]
 
 permissions:
   contents: read
@@ -44,6 +18,10 @@ env:
 
 jobs:
   convergence:
+    if: >-
+      github.event.label.name == 'run-convergence' &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.draft == false
     name: Convergence / ${{ matrix.field }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60

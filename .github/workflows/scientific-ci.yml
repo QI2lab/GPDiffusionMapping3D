@@ -3,8 +3,6 @@ name: Scientific CI
 on:
   push:
   pull_request:
-  schedule:
-    - cron: '17 6 * * *'
   workflow_dispatch:
 
 permissions:
