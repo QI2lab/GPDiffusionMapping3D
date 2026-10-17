@@ -26,6 +26,11 @@ either with `-m unit` or `-m integration`. Shared deterministic inputs and
 independent numerical references are fixtures; MCMC states remain separate.
 See [the test audit](docs/test-fixture-audit.txt).
 
+GitHub Actions runs 55 scientific cases in four parallel jobs on pushes and
+PRs. The two full 3D convergence cases run nightly, manually, and automatically
+for PRs changing numerical code; all original scientific thresholds are kept.
+See [the CI configuration and local validation](docs/github-ci.txt).
+
 `pyproject.toml` specifies dependencies. `uv.lock` is local and ignored; fresh
 checkouts resolve their own environment. No GPU or CUDA installation is needed.
 

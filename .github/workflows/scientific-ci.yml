@@ -1,0 +1,68 @@
+name: Scientific CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scientific-ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENBLAS_NUM_THREADS: '1'
+  OMP_NUM_THREADS: '1'
+  MPLBACKEND: Agg
+
+jobs:
+  scientific:
+    name: Scientific / ${{ matrix.suite }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: unit
+            args: tests/cpu -m unit
+          - suite: posterior
+            args: tests/cpu/test_sampling.py
+          - suite: physics
+            args: >-
+              tests/cpu/test_physics.py tests/cpu/test_3d.py
+              -m integration -k 'not test_independent_3d_chains_converge'
+          - suite: files
+            args: tests/cpu/test_file_physics.py
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          cache-suffix: ${{ matrix.suite }}
+      - name: Install CPU environment
+        run: uv sync --group dev
+      - name: Run scientific tests
+        run: >-
+          uv run --no-sync python -m pytest ${{ matrix.args }}
+          --strict-markers -ra -q --durations=20
+          --junitxml=validation_artifacts/ci-${{ matrix.suite }}.xml
+          --basetemp=validation_artifacts/ci-${{ matrix.suite }}
+      - name: Save scientific results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: scientific-${{ matrix.suite }}
+          path: |
+            validation_artifacts/ci-${{ matrix.suite }}.xml
+            validation_artifacts/ci-${{ matrix.suite }}/**/physical-result.json
+          if-no-files-found: ignore
+          retention-days: 7

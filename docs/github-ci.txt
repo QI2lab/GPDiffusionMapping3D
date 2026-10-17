@@ -1,0 +1,80 @@
+GitHub scientific CI
+====================
+
+Scientific CI (.github/workflows/scientific-ci.yml) runs on pushes and pull
+requests. It retains 55 of the 57 scientific cases, split into four parallel
+Linux/Python-3.12 jobs:
+
+    unit         23 cases: independent mathematical identities and proposals
+    posterior     4 cases: additive/blocked chains versus refined quadrature
+    physics      24 cases: Brownian laws and 2D/3D ground-truth field recovery
+    files         4 cases: CSV, Parquet, column/unit overrides and legacy XY
+
+All recovery seeds and finer-step cases are retained. Only the two full 3D
+convergence cases are deferred from this shorter workflow. No inference code,
+warmup, chain length, seed or acceptance threshold changes are involved.
+Only unit/integration scientific markers exist; no extra test category or
+new testing dependency is needed. No test failure is allowed to continue.
+
+3D convergence (.github/workflows/convergence.yml) runs the uniform and smooth
+cases in parallel, each still using four independent chains, 20,000 production
+sweeps per chain and all 278 monitored quantities. It runs automatically for
+pull requests changing numerical code, scientific tests/helpers, dependencies
+or workflows, and matching pushes to main/master. These checks are additional
+scientific gates for such changes; they are not made optional by shortening
+the normal workflow. Path filters are declared explicitly in that workflow.
+
+Both workflows run nightly at 06:17 UTC and support manual workflow_dispatch.
+Together the nightly jobs exercise all 57 cases. GitHub schedules run only
+from the default branch, so nightly execution starts after these workflow
+files reach that branch. Each manual workflow runs its own selection; run
+both when requesting all 57 cases manually.
+
+Jobs use CPU float64, Ubuntu 24.04 and uv's managed Python 3.12. Each checkout
+resolves its own ignored uv.lock using uv sync --group dev, then executes
+uv run --no-sync. No --locked/--frozen assumption or CUDA dependency is added.
+The setup-uv cache is keyed from pyproject.toml with a separate suffix per
+matrix job. BLAS/OpenMP threads are fixed at one and Matplotlib uses Agg.
+Independent chains may run concurrently; dependent proposals stay sequential.
+
+Each job reports --durations=20 and saves JUnit XML. File jobs also retain
+physical-result.json. Convergence jobs retain diagnostics and per-chain JSON
+and logs, including available failure evidence. Artifact paths are explicit:
+uv.lock, the virtual environment and raw trajectory/sample archives are not
+uploaded. Retention is seven days. Superseded runs for the same event/ref are
+cancelled; different event types do not cancel each other's required checks.
+
+Branch protection
+-----------------
+The normal checks are named Scientific / unit, Scientific / posterior,
+Scientific / physics and Scientific / files. These are suitable required PR
+checks. Convergence / uniform and Convergence / smooth are path-filtered;
+do not require them unconditionally for every PR, since a non-triggered
+workflow could leave an unconditional required check pending. Review numerical
+changes only after their automatically triggered convergence jobs pass.
+This change does not modify repository branch protection or bypass permissions.
+
+Activation and validation
+-------------------------
+Workflow files must be pushed to GitHub before hosted runs can occur. Local
+workflow linting and exact scientific job execution are recorded separately
+from any hosted result. The previous full suite passed 57 cases in 1221.90 s;
+that historical full run does not measure hosted CI or this parallel layout.
+The exact four shorter job commands passed locally: unit 23/23 (0.886 s),
+posterior 4/4 (11.283 s), physics 24/24 (241.661 s), files 4/4 (191.224 s).
+All 55 passed with zero errors, failures or skips. Jobs ran concurrently
+on the workstation; the longest pytest job was 4m 02s. This excludes hosted
+runner provisioning and dependency installation and uses existing local Numba
+caches. It is not a promised GitHub runtime. Actual hosted timing remains to
+be measured after pushing. Both deferred convergence cases passed previously
+with unchanged full protocols; they were not rerun for workflow-only changes.
+A collection audit confirmed the four short selections are disjoint and their
+union excludes exactly the two full convergence cases. Both workflows passed
+actionlint v1.7.12. Published action refs were checked and pinned to commits.
+Current local selections and measurements are in github-ci-results.json.
+
+References checked during implementation:
+https://docs.astral.sh/uv/guides/integration/github/
+https://github.com/astral-sh/setup-uv/blob/main/docs/caching.md
+https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
+https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
