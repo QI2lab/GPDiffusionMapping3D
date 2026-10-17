@@ -1,9 +1,10 @@
 """Prepare spatial grids, regularized covariance and initial diffusion."""
 
-import numpy as np
-import numba as nb
-
 from types import SimpleNamespace
+
+import numba as nb
+import numpy as np
+
 from gp_math import covMat, covMat_gpu, log_likelihood, log_prior
 
 
@@ -56,7 +57,7 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
     covL = variables.covL
     covLambda = variables.covLambda
 
-    # Identical consecutive within-track pairs, without quadratic vstack copies.
+    # Consecutive within-track pairs, without quadratic vstack copies.
     paired = trajectoriesIndex[:-1] == trajectoriesIndex[1:]
     dataCoordinates = np.ascontiguousarray(
         data.starts if hasattr(data, "starts") else trajectories[:-1][paired]
@@ -133,7 +134,8 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
         dData = cDataIndu @ dIndu
     if bool(xp.any(dData <= 0)) or bool(xp.any(dIndu <= 0)):
         raise ValueError(
-            "Initialization requires positive inducing and interpolated diffusion"
+            "Initialization requires positive inducing and "
+            "interpolated diffusion"
         )
     P = float(
         log_likelihood(
@@ -147,7 +149,8 @@ def initialization(variables, data, backend="cpu", dtype="float64"):
     variables.a = a
 
     print(
-        f"The initial probability is {P} and there are {nIndu} inducing points."
+        f"The initial probability is {P} "
+        f"and there are {nIndu} inducing points."
     )
 
     # Save all variable parameters
@@ -228,7 +231,7 @@ def construct_covariances(
     induCoordinates, dataCoordinates, fineCoordinates, covLambda, covL,
     epsilon, kernel, xp, dtype,
 ):
-    """Construct the unchanged regularized covariance and interpolation matrices."""
+    """Construct regularized covariance and interpolation matrices."""
     nIndu = len(induCoordinates)
     # Determine Covariance matrices
     cInduIndu = kernel(induCoordinates, induCoordinates, covLambda, covL)

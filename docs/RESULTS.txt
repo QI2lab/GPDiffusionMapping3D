@@ -6,7 +6,8 @@ float64. Stage 4 mathematical and physical recovery checks passed, but
 the original sampler failed independent-chain mixing. The user-authorized
 blocked sampler has now passed development and held-out convergence on CPU
 and CUDA. The full scientific suite passed; Stage 4 is complete. Stage 5
-refactoring and CLI work follow this gate.
+refactoring and CLI are implemented, pending the final full scientific suites
+and isolated performance measurements.
 See sampling-repair-plan.txt and the repair reports.
 
 Environment: Python 3.12.13, NumPy 2.0.2, Numba 0.60.0, SciPy 1.14.1,
@@ -147,7 +148,9 @@ Computational API: model.analyze(data, backend="cpu" or "gpu", dtype="float64").
 Optional burn_in specifies additional discarded temperature-one sweeps after
 adaptation. Three-dimensional data preparation uses linked ZYX tracks and
 each displacement's actual numeric elapsed seconds. The inferred field is
-static D(z,y,x). Refactoring, Parquet and the Typer CLI await Stage 4.
+static D(z,y,x). The refactored numerical modules and thin Typer CLI now support
+CSV/Parquet with exact column overrides. Final Stage 5 validation is pending;
+see refactoring-validation.txt for implemented behavior and actual commands.
 
 Windows, macOS, CPU-only fresh installation on a different machine, other
 GPU architectures and CI were not validated. Linux CPU/CUDA results above

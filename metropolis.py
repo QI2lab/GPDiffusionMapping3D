@@ -1,7 +1,7 @@
 """Sequential CPU and CUDA Metropolis proposals for the exact GP target."""
 
-import numpy as np
 import numba as nb
+import numpy as np
 
 from gp_math import (
     indexShuffler, logNormpdf, gpu_likelihood_difference,
@@ -210,7 +210,8 @@ def diffusionPointSampler_gpu(variables):
             if np.isneginf(delta):
                 if diagnostics is not None:
                     diagnostics[1, k] += 1
-                continue  # Match CPU positivity rejection before an acceptance draw.
+                # Reject positivity violations before drawing for acceptance.
+                continue
             delta += (
                 -change * (inducing_host - mean_host)[k]
                 - 0.5 * change**2 * proposal_host[k, k]
@@ -410,7 +411,7 @@ def sample_blocks(v):
 def cpu_log_posterior(
     dIndu_, dData_, priorMean, cInduInduInv, means, samples, deltaT,
 ):
-    """Evaluate the original full-density CPU arithmetic in its original order."""
+    """Evaluate the original full-density CPU arithmetic in its order."""
     # Prior ignoring normalization
     diff = dIndu_ - priorMean
     prior = -0.5 * (diff.T @ (cInduInduInv @ diff))

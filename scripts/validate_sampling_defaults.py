@@ -1,4 +1,4 @@
-"""Measure and physically validate repaired 3D defaults on each local backend."""
+"""Measure and physically validate repaired 3D defaults on each backend."""
 
 import contextlib
 import io
@@ -16,7 +16,7 @@ from scripts.validate_3d import prepared, truth
 
 
 def measure(backend: str) -> dict:
-    """Check recovery and full densities, timing one warmed inference at a time."""
+    """Check recovery and densities, timing one warmed inference at a time."""
     data = prepared(feature=True)
     parameters = dict(nFineX=5, nFineY=5, nFineZ=5, covLambda=0.5, covL=1.5)
     if backend == "gpu":
@@ -50,7 +50,9 @@ def measure(backend: str) -> dict:
     weights = np.linalg.solve(
         covariance,
         0.25 * np.exp(
-            -np.sum((data.starts[:, None] - coordinates[None]) ** 2, axis=2) / 4.5
+            -np.sum(
+                (data.starts[:, None] - coordinates[None]) ** 2, axis=2
+            ) / 4.5
         ).T,
     ).T
     prior_mean = np.mean(
@@ -66,7 +68,8 @@ def measure(backend: str) -> dict:
             scale=np.sqrt(2 * field[:, None] * data.delta_t[:, None]),
         ).sum() - 0.5 * residual @ np.linalg.solve(covariance, residual)
         error = abs(direct - posterior[index])
-        assert error < 128 * np.finfo(float).eps * condition * max(1, abs(direct))
+        bound = 128 * np.finfo(float).eps * condition * max(1, abs(direct))
+        assert error < bound
         maximum_error = max(maximum_error, float(error))
     points = np.array([
         (z, y, x) for z in (-1.0, 0.0, 1.0)

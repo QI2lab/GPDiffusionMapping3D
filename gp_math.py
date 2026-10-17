@@ -1,7 +1,7 @@
 """Validated spatial GP and Gaussian transition mathematics."""
 
-import numpy as np
 import numba as nb
+import numpy as np
 
 _proposal_reduction = None
 _proposal_reduction32 = None
@@ -102,7 +102,7 @@ def log_prior(diffusion, mean, inverse):
 
 
 def likelihood_difference(old, new, a, dimensions=2, xp=np):
-    """Evaluate a proposal ratio directly without subtracting total densities."""
+    """Evaluate a proposal ratio without subtracting total densities."""
     if bool(xp.any(new <= 0)):
         return -xp.inf
     return xp.sum(
@@ -129,11 +129,13 @@ def gpu_likelihood_difference(old, column, change, a, dimensions=2):
     if old.dtype == cp.float32:
         if _proposal_reduction32 is None:
             _proposal_reduction32 = cp.ReductionKernel(
-                "float32 old, float32 column, float32 change, float32 a, float32 half_dimension",
+                "float32 old, float32 column, float32 change, "
+                "float32 a, float32 half_dimension",
                 "float32 result",
                 "old + column * change > 0 ? "
                 "-half_dimension * logf((old + column * change) / old) "
-                "-a * (1.0f / (old + column * change) - 1.0f / old) : -(1.0f/0.0f)",
+                "-a * (1.0f / (old + column * change) - 1.0f / old) "
+                ": -(1.0f/0.0f)",
                 "a + b",
                 "result = a",
                 "0",
@@ -142,7 +144,8 @@ def gpu_likelihood_difference(old, column, change, a, dimensions=2):
         return _proposal_reduction32(old, column, change, a, dimensions / 2)
     if _proposal_reduction is None:
         _proposal_reduction = cp.ReductionKernel(
-            "float64 old, float64 column, float64 change, float64 a, float64 half_dimension",
+            "float64 old, float64 column, float64 change, "
+            "float64 a, float64 half_dimension",
             "float64 result",
             "old + column * change > 0 ? "
             "-half_dimension * log((old + column * change) / old) "

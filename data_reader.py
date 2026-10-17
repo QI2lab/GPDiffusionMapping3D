@@ -163,3 +163,122 @@ def data_reader_3d(path, scale=1):
         )
     except (TypeError, ValueError) as error:
         raise ValueError(f"Invalid timestamped 3D tracks: {error}") from error
+
+
+def read_track_table(path, particle_col="particle #"):
+    """Read CSV or Parquet while preserving linked particle identities.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Input table with a CSV or Parquet suffix.
+    particle_col : str, optional
+        Exact identity column. CSV identities are read as strings to avoid
+        rounding large integer identifiers through floating point.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Input columns with their original names and numerical values.
+    """
+    from pathlib import Path
+    import pandas as pd
+
+    path = Path(path)
+    match path.suffix.lower():
+        case ".csv":
+            return pd.read_csv(
+                path, dtype={particle_col: "string"}, skipinitialspace=True
+            )
+        case ".parquet":
+            return pd.read_parquet(path, engine="pyarrow")
+        case _:
+            raise ValueError("Track input must have a .csv or .parquet suffix")
+
+
+def prepare_table_tracks(
+    table, *, dimensions=3, particle_col="particle #", z_col="z", y_col="y",
+    x_col="x", time_col="timestamp", scale=1, delta_t=None,
+):
+    """Map table columns and prepare physical within-particle transitions.
+
+    Parameters
+    ----------
+    table : pandas.DataFrame
+        Already linked observations. Unrelated columns are ignored.
+    dimensions : {2, 3}, optional
+        Explicit XY or ZYX coordinate order.
+    particle_col, z_col, y_col, x_col, time_col : str, optional
+        Exact names of the corresponding columns.
+    scale : float, optional
+        Positive conversion from input position units to nanometers.
+    delta_t : float or None, optional
+        Explicit positive elapsed seconds for legacy 2D input without times.
+
+    Returns
+    -------
+    types.SimpleNamespace
+        Validated sorted tracks, transitions and actual elapsed seconds.
+    """
+    if dimensions not in (2, 3):
+        raise ValueError("dimensions must be 2 or 3")
+    coordinates = (x_col, y_col) if dimensions == 2 else (z_col, y_col, x_col)
+    timestamped = time_col in table.columns
+    required = (
+        particle_col, *coordinates, *((time_col,) if timestamped else ())
+    )
+    missing = [column for column in required if column not in table.columns]
+    if missing:
+        raise ValueError(f"Missing mapped columns: {', '.join(missing)}")
+    if len(set(required)) != len(required):
+        raise ValueError(
+            "Mapped identity, position and time columns must be distinct"
+        )
+    if table[particle_col].isna().any():
+        raise ValueError("Particle identities must not be missing")
+    identities = table[particle_col].to_numpy(dtype=object)
+    if timestamped:
+        if delta_t is not None:
+            raise ValueError(
+                "delta_t cannot override an existing timestamp column"
+            )
+        times = table[time_col].to_numpy()
+    else:
+        if dimensions == 3:
+            raise ValueError(f"3D input requires timestamp column {time_col!r}")
+        if delta_t is None or not np.isfinite(delta_t) or delta_t <= 0:
+            raise ValueError(
+                "Legacy 2D input requires explicit positive delta_t seconds"
+            )
+        # In legacy input, row order within each linked particle is frame order.
+        counts = {}
+        times = np.empty(len(identities), dtype=np.float64)
+        for index, identity in enumerate(identities):
+            frame = counts.get(identity, 0)
+            times[index] = frame * delta_t
+            counts[identity] = frame + 1
+    return prepare_tracks(
+        identities, table[list(coordinates)].to_numpy(), times, scale=scale
+    )
+
+
+def read_tracks(path, **column_options):
+    """Read either table format and reuse the same physical track preparation.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        CSV or Parquet linked tracks.
+    **column_options
+        Exact column mappings, dimensions, scale and optional legacy delta_t
+        accepted by prepare_table_tracks.
+
+    Returns
+    -------
+    types.SimpleNamespace
+        Prepared within-particle transitions in nanometers and seconds.
+    """
+    table = read_track_table(
+        path, particle_col=column_options.get("particle_col", "particle #")
+    )
+    return prepare_table_tracks(table, **column_options)

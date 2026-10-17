@@ -1,9 +1,11 @@
 """Inference setup, warmup, production sampling and result collection."""
 
-import numpy as np
-import functions
 import copy
 import time
+
+import numpy as np
+
+import functions
 
 # Existing GP and sampler parameter defaults
 PARAMETERS = {
@@ -11,33 +13,33 @@ PARAMETERS = {
     "nInduZ": 5,
     "nFineZ": 10,
     "nInduX": 30,  # Number of x inducing points
-    "nInduY": 30,  # Number of y grid points (total inducing points is nInduY*nInduX)
+    "nInduY": 30,  # Number of y inducing points
     "nFineX": 100,  # Fine grid points in x
-    "nFineY": 100,  # Fine grid points in y (total fine points is nFineY*nFineX)
+    "nFineY": 100,  # Number of fine y grid points
     "nIndu": 0,  # Number of inducing points after trimming
     # Knowns to be evaluated
-    "dataCoordinates": None,  # All points of each trajectory except final location
-    "sampleCoordinates": None,  # All points of each trajectory except initial location
+    "dataCoordinates": None,  # Transition start locations
+    "sampleCoordinates": None,  # Transition end locations
     "induCoordinates": None,  # Coordinates of the inducing points
     "fineCoordinates": None,  # Coordinates of fine grid points
     "cInduIndu": None,  # Covariance matrix between inducing points
-    "cInduData": None,  # Covariance matrix between inducing points and data points
-    "cInduFine": None,  # Covariance matrix between inducing points and fine grid points
+    "cInduData": None,  # Covariance between inducing and observation points
+    "cInduFine": None,  # Covariance between inducing and fine grid points
     "cInduInduChol": None,  # Cholesky decomposition of cInduIndu
     "cInduInduInv": None,  # Inverse of cInduIndu
     "cDataIndu": None,  # Product of cInduData*cInduInduInv
     # Variables
     "P": float,  # Probability of each sample
     "dIndu": None,  # Diffusion coefficient sample map at inducing points
-    "dData": None,  # Interpolated diffusion from induCoordinates to dataCoordinates
+    "dData": None,  # Diffusion interpolated at observations
     # Priors
-    "covLambda": None,  # Coefficient of covariance square exponential kernel (1 only used if hyper parameters on specified)
-    "covL": None,  # Lengths parameter of covariance square exponential kernel (20 only used if hyper parameters on specified)
+    "covLambda": None,  # Kernel standard deviation; estimated if unspecified
+    "covL": None,  # Kernel length; estimated if unspecified
     "mle": None,  # Prior on Inducing point MAP (set to MLE in init)
     "priorMean": None,  # Flat surface at MLE to be used as mean of GPP
     # Sampler parameters
-    "epsilon": 1e-2,  # Perturbation parameter to keep matrix decomposition numerically stable and sample magnitude
-    "temperature": 10,  # Temperature for simulated annealing will decay to one over time
+    "epsilon": 1e-2,  # Original covariance regularization coefficient
+    "temperature": 10,  # Annealing temperature; production uses one
 }
 
 
@@ -74,7 +76,7 @@ def analyze(
         Numerical precision. Only float64 passed scientific validation.
     burn_in : int or None, optional
         Additional discarded temperature-one sweeps after adaptation, with
-        fixed proposal widths. Defaults to 1000 for blocked proposals, else zero.
+        fixed widths. Defaults to 1000 for blocked proposals, else zero.
     adaptation : {"legacy", "diminishing"} or None, optional
         Defaults to legacy cumulative adaptation for relative proposals and
         recent-window log-width tuning for additive or blocked proposals.
@@ -83,7 +85,7 @@ def analyze(
         sweeps; other proposals use twice nIter. Adaptation defaults to 200
         sweeps for legacy tuning or 4000 for diminishing tuning.
     diagnostics : bool, optional
-        Record warmup widths, rejections and accepted coefficient displacements.
+        Record warmup widths, rejections and accepted displacements.
     initial_inducing : numpy.ndarray or None, optional
         Positive initial inducing field for independent-chain investigation.
     proposal : {"relative", "additive", "blocked"} or None, optional
@@ -106,7 +108,9 @@ def analyze(
     """
 
     if proposal is None:
-        proposal = "blocked" if getattr(data, "dimensions", 2) == 3 else "relative"
+        proposal = (
+            "blocked" if getattr(data, "dimensions", 2) == 3 else "relative"
+        )
     if adaptation is None:
         adaptation = "legacy" if proposal == "relative" else "diminishing"
     if burn_in is None:
@@ -143,7 +147,8 @@ def analyze(
         import warnings
 
         warnings.warn(
-            "GPU float32 is experimental and failed acceptance-ratio validation; use float64 for inference",
+            "GPU float32 is experimental and failed acceptance-ratio "
+            "validation; use float64 for inference",
             RuntimeWarning,
             stacklevel=2,
         )
@@ -272,7 +277,7 @@ def analyze(
 def run_warmup(
     variables, data, burnIter, stabilizeIter, burn_in, adaptation, diagnostics,
 ):
-    """Run annealing, width adaptation and fixed-width discarded equilibration."""
+    """Run annealing, adaptation and fixed-width discarded equilibration."""
     warmup_trace = []
     # Redefine perturbation magnitude for samples
     variables.epsilon = np.ones(variables.nProposals)
@@ -340,7 +345,7 @@ def run_warmup(
 
     ## Stabilize proposal Magnitude ##
     # Set temperature back to 1 and acceptance to 0, and iterate
-    # a few times to find ideal magnitude of proposal to maintain healthy acceptance
+    # to tune proposal magnitudes at temperature one.
     variables.temperature = 1
     window_acceptance = np.zeros(variables.nProposals)
     accVect = np.zeros(variables.nProposals)
@@ -410,7 +415,7 @@ def run_production(variables, data, nIter, backend):
 
 
 def return_arrays_to_host(map_variables, backend):
-    """Synchronize CUDA once and return result arrays in physical coordinates."""
+    """Synchronize CUDA and return arrays in physical coordinates."""
     if backend == "gpu":
         import cupy as cp
 

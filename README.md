@@ -1,6 +1,9 @@
 # GPDiffusionMapping
 
-This is the repository for our Diffusion Mapping project from trajectory data, BioArXiV link. For ease of use, it is organized so that users only need to interact with the main.py file. A synthetic dataset is provided in the /data directory under /example that correlates to a flat Diffusion Map at 0.05 $\frac{\mu m^2}{s}$, where the data set has ~5000 localizations. The experimental data associated with our paper, https://www.biorxiv.org/content/10.1101/2024.02.27.582378v1, is also provided in the /data directory under /experimental.
+Gaussian-process diffusion mapping from already linked particle trajectories.
+The model infers a static isotropic diffusion field in XY or ZYX coordinates.
+Synthetic and experimental data accompanying the
+[paper](https://www.biorxiv.org/content/10.1101/2024.02.27.582378v1) are in `data/`.
 
 ## Installation
 
@@ -53,13 +56,52 @@ See `docs/stage-validation.txt` for executed checks and stage status.
 
 ## Usage
 
-To run the code, simply run the main.py file in your favorite python editor. Change `dataPath` to the path of your data file.
+The `gpdiffusion-map` Typer command reads `.csv` or `.parquet`. Input contains
+already linked tracks; timestamps are numeric seconds. Positions default to
+nanometers. Each transition uses its actual positive elapsed time after sorting
+within its particle. Timestamp is not a fourth spatial coordinate.
 
-The data file should be a csv file with 3 columns: `particle #`, `xPos`, and `yPos`, where `particle #` is the particle number, `xPos` is the x position of the particle, and `yPos` is the y position of the particle. Position is measured in nanometers. Time steps are assumed to be taken at 30 Hz.
+| Role | Default column | Override |
+| --- | --- | --- |
+| Particle identity | `particle #` | `--particle-col` |
+| Z position (3D) | `z` | `--z-col` |
+| Y position | `y` | `--y-col` |
+| X position | `x` | `--x-col` |
+| Time in seconds | `timestamp` | `--time-col` |
 
-The code will output an image and save it to the `output/` directory.
+```bash
+uv run --no-sync gpdiffusion-map tracks.csv --backend gpu
+uv run --no-sync gpdiffusion-map tracks.parquet --backend cpu
+uv run --no-sync gpdiffusion-map tracks.parquet --particle-col track_id --z-col z_um --y-col y_um --x-col x_um --time-col time_s --scale 1000
+uv run --no-sync gpdiffusion-map legacy.csv --dimensions 2 --x-col xPos --y-col yPos --delta-t 0.03333333333333333
+uv run --no-sync python -m gpdiffusion_cli tracks.csv --backend gpu
+uv run --no-sync gpdiffusion-map --help
+```
 
-The code is set to run with default hyperparameters, but the user can change the hyperparameters as needed by including them as keyword arguments in the `analyze` function. A dictionary of the hyperparameters can be found in `model.py`.
+The scale example converts micrometers to nanometers. Column overrides are
+exact and apply to both formats. Unrelated columns are ignored and particle
+identities are preserved without conversion to floating point. Three-dimensional
+input always requires timestamps. Legacy XY input without a timestamp column
+requires an explicit positive `--delta-t`; it uses row order within each linked
+particle. `--delta-t` is rejected when timestamps are present.
+
+Defaults are `--dimensions 3`, `--backend gpu`, `--dtype float64`,
+`--iterations 1000`, `--output-dir output` and `--scale 1`.
+GPU float32 failed validation and is rejected by the file/CLI inference path.
+An unavailable requested GPU is an error; inference never switches to CPU.
+
+Outputs are `InferredMAP.png`, `inference.npz`, `metadata.json` and
+`sampling.log`. The figure uses µm and µm²/s; numerical coordinates and diffusion
+samples use nm and nm²/s. The 3D figure is an XY slice at the nearest central Z.
+NPZ contains every production inducing sample, unnormalized log posterior,
+inducing/fine coordinates and the MAP field on the fine grid. Metadata records
+the coordinate order, units, backend and sampling schedule.
+
+File reading, inference and output are callable separately through
+`data_reader.read_tracks`, `model.analyze`, `mapping_io.infer_file` and
+`mapping_io.save_results`. Model parameter overrides remain available through
+the computational functions; see `model.PARAMETERS`. `main.py` also invokes
+the same CLI from a checkout.
 
 ## Validated precision and stage status
 
@@ -95,7 +137,8 @@ minimum bulk ESS 2,127 across all 278 monitored quantities, and physical RMS
 recovery below 6.84%. Held-out confirmation also passed: maximum R-hat 1.00501,
 minimum bulk ESS 2,083 and recovery below 6.33%. The full required-GPU suite
 passed 30 tests with zero skips; the separate CPU suite passed 40 tests.
-Stage 4 is complete. Stage 5 refactoring and CLI work follow this gate.
+Stage 4 is complete. Stage 5 refactoring and CLI are implemented; their complete
+CPU/GPU scientific suites and final performance measurements are in progress.
 See `docs/sampling-repair-plan.txt`,
 `docs/sampling-blocked8-development.json` and
 `docs/figures/sampling-blocked8-development.png`. The full GPU suite includes
@@ -109,6 +152,10 @@ Use `proposal="relative", adaptation="legacy"` for the historical 3D reference.
 sweeps. Production defaults to 1,000 as before; the convergence validation used
 four independent chains with 20,000 production sweeps each. A short single
 run does not establish posterior convergence.
+Use explicit independent seeds and varied positive initial fields through the
+computational API for multiple-chain diagnostics; the validation protocol is in
+`scripts/run_sampling_repair.py`. Repeating a CLI command is not a substitute
+for that independent-chain protocol.
 
 ## Assumed Units
 

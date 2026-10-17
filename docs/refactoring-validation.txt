@@ -42,3 +42,53 @@ An earlier default check overlapped targeted GPU tests. Its numerical/physical
 results are valid, but its GPU timing is explicitly discarded in
 sampling-defaults-initial-check.json. The complete sequential benchmark above
 was repeated with no concurrent inference/tests before accepting its timings.
+
+FILE INPUT AND CLI IMPLEMENTED; FINAL SUITES PENDING
+
+read_track_table selects pandas CSV or PyArrow Parquet by suffix. Column mapping
+and physical preparation are shared in prepare_table_tracks / prepare_tracks.
+CSV particle identities use strings; Parquet identities retain their native
+values. No identity is cast through float64. XY or ZYX positions are converted
+to nanometers before preparing within-particle displacements. Numeric seconds
+are sorted within each particle and actual positive elapsed times are retained.
+Legacy 2D without timestamps requires explicit positive delta_t and preserves
+within-particle row order. An existing timestamp column rejects delta_t.
+
+mapping_io.infer_file orchestrates reading and the independently callable
+model; save_results handles figures and numerical output after inference.
+gpdiffusion_cli.py supplies one thin Typer command with the plan's enums,
+column overrides and defaults. Float32 is rejected as unvalidated. A GPU request
+never falls back to CPU. main.py invokes that same CLI from a checkout.
+Detailed numerical progress is saved to sampling.log, outside the terminal flow.
+
+Added through uv sync --group dev --extra gpu: Typer .27.3, pandas3.0.6,
+PyArrow26.0.0. Numerical dependencies and CuPy versions remain unchanged.
+uv.lock remains local, ignored and untracked.
+
+Manually inspected installed command help:
+    uv run --no-sync gpdiffusion-map --help
+All required defaults/overrides are visible. This is not a scientific test.
+Executed both command forms on independent seed45 regular-time 3D data,
+4000 pairs, true D=1 nm^2/s:
+    uv run --no-sync gpdiffusion-map validation_artifacts/cli-example/tracks.csv --backend cpu --iterations 100 --output-dir validation_artifacts/cli-example/output
+    uv run --no-sync python -m gpdiffusion_cli validation_artifacts/cli-example/tracks.csv --backend cpu --iterations 100 --output-dir validation_artifacts/cli-example/module-output
+Both exited zero and saved the figure, samples and unit metadata. The updated
+module command also writes sampling.log. Inspected the actual XY-slice image:
+positions are in micrometers and diffusion in micrometers squared per second.
+Metadata reports ZYX, float64, 4000 transitions and scalar MLE1.006949683 nm^2/s.
+The short example is not an MCMC convergence validation or performance benchmark.
+
+New scientific file cases are declared in scripts/file_physics.py before their
+outcomes: data seed44, CPU601/GPU701, 20000 pairs, unchanged 10% central recovery
+criterion; 3D actual irregular timestamps and 2D regular .005-second intervals.
+CSV, Parquet, renamed Parquet columns with micrometer-to-nanometer conversion,
+and legacy XY CSV all compare the Gaussian density and MLE with the original
+independent simulation and chi-square prediction, then recover known diffusion.
+IDs above 2^53 expose floating-point identity loss. Unrelated columns are ignored.
+No parser, API, help, snapshot, import or file-existence tests were introduced.
+
+Full scientific runs currently in progress, on separate hardware categories:
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/stage5-cpu-tests
+    GPD_REQUIRE_GPU=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/gpu --strict-markers -q --basetemp validation_artifacts/stage5-gpu-tests
+Raw chain/input artifacts stay local and ignored. These concurrent correctness
+runs are not timing comparisons. A final isolated warmed timing remains required.

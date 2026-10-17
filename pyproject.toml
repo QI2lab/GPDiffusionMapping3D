@@ -14,10 +14,16 @@ dependencies = [
     "numba==0.60.0",
     "scipy==1.14.1",
     "matplotlib==3.9.4",
+    "typer>=0.15",
+    "pandas>=2.2",
+    "pyarrow>=19",
 ]
 
 [project.optional-dependencies]
 gpu = ["cupy-cuda12x[ctk]>=14.1.1; sys_platform == 'linux' or sys_platform == 'win32'"]
+
+[project.scripts]
+gpdiffusion-map = "gpdiffusion_cli:app"
 
 [dependency-groups]
 dev = ["pytest>=8"]
@@ -30,6 +36,7 @@ default-groups = ["gpu"]
 py-modules = [
     "data_reader", "functions", "gp_math", "gp_initialization",
     "metropolis", "model", "plotting",
+    "mapping_io", "gpdiffusion_cli",
 ]
 
 [tool.pytest.ini_options]
