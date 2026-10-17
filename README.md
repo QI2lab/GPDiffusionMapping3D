@@ -108,15 +108,15 @@ Saved arrays and figures both use µm and µm²/s; array keys use the `um` suffi
 
 ```bash
 uv sync --group dev
-uv run --no-sync python -m pytest tests/cpu --strict-markers -q
+uv run --no-sync python -m pytest tests/cpu --strict-markers -q \
+  -k 'not test_independent_3d_chains_converge'
 ```
 
 Keep changes consistent with the physical model and include scientific checks.
 Preserve the original copyright, license and attribution notices.
 The shorter CI suite runs on PRs and pushes to `main`/`master`. Add
 `run-convergence` to a non-draft PR ready to merge to request full convergence
-checks. Further validation and implementation details are in the
-[documentation](docs/index.md).
+checks. See the [documentation](docs/index.md) for full usage instructions.
 
 Build or preview the Markdown documentation with MkDocs Material:
 

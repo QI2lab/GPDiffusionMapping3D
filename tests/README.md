@@ -25,8 +25,5 @@ uv run --no-sync python -m tests.support.run_sampling_repair --help
 uv run --no-sync python -m tests.support.validate_migration
 ```
 
-The former `scripts/*.py` tools now have the same filenames under
-`tests/support/`. Older reports retain their original command paths as a
-record of execution; substitute `tests/support/` when reproducing a retained
-tool. Historical CPU/GPU plots consume archived results and do not run CUDA.
-For end-user inference, use `gpdiffusion-map`; no development tools are needed.
+Scientific measurement reports and figures are stored in `validation/`.
+For inference, use `gpdiffusion-map`; no development tools are needed.

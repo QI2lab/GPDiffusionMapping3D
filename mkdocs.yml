@@ -53,17 +53,6 @@ nav:
   - Workflow: workflow.md
   - Map outputs: map-export.md
   - API notes: api.md
-  - Scientific validation:
-      - Overview and reports: reference/index.md
-      - Results: RESULTS.md
-      - CPU-only decision: cpu-only-decision.md
-      - CPU optimization: cpu-optimization.md
-      - Sampling mathematics: sampling-repair-mathematics.md
-      - Sampling repair: sampling-repair-plan.md
-      - Burn-in investigation: 3d-burnin-investigation.md
-      - Implementation stages: stage-validation.md
-      - Refactoring: refactoring-validation.md
-      - Test fixtures: test-fixture-audit.md
   - GitHub CI: github-ci.md
   - Contributing: contributing.md
 

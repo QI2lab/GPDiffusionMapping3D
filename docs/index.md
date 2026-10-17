@@ -23,12 +23,5 @@ Positions use microns, timestamps use seconds, and diffusion coefficients use
 µm²/s. A directory contains one file per cell; a single combined file uses an
 integer `cell_id` column. Batching is automatic.
 
-## Method and development
-
-The [API notes](api.md) describe computational entry points. The
-[scientific validation records](reference/index.md) preserve the mathematical,
-physical, sampling and performance evidence, including historical GPU work.
-Current inference uses CPU float64; float32 is used only for TIFF export.
-
-For development, see [Contributing](contributing.md) and the
-[GitHub CI guide](github-ci.md).
+For Python use, see the [API](api.md). For development, see
+[Contributing](contributing.md) and [GitHub CI](github-ci.md).

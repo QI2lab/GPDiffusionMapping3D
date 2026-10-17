@@ -65,10 +65,8 @@ uv run --no-sync gpdiffusion-map cells_2d.csv --dimensions 2 --output-dir maps_2
 uv run --no-sync gpdiffusion-map cells_3d.csv --dimensions 3 --output-dir maps_3d
 ```
 
-Cells are processed in numeric order. Each has its own GP grid, warmup and
-production chain; observations from different cells are not pooled. The default
-is 1,000 production sweeps after warmup. Assess convergence before interpreting
-results; the full 3D scientific validation used 20,000 sweeps per chain.
+Cells run independently in numeric order. `--iterations` controls production
+sweeps after warmup. Assess convergence before interpreting the maps.
 
 ## Column names and units
 

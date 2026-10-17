@@ -1,111 +1,26 @@
-# GitHub scientific CI
+# GitHub CI
 
-Scientific helpers and standalone validation/benchmark tools live under
-tests/support/; no CI tests depend on a top-level scripts directory.
+The short scientific suite runs on pull requests and pushes to `main`/`master`.
+Feature-branch pushes do not trigger a duplicate run. Manual runs are available
+through GitHub Actions.
 
-Scientific CI (.github/workflows/scientific-ci.yml) runs on pull requests and
-pushes to main/master, avoiding duplicate feature-branch push and PR runs.
-It retains 56 of the 58 scientific cases, split into four parallel
-Linux/Python-3.12 jobs:
+| Check | Coverage |
+| --- | --- |
+| Unit | Independent mathematical identities and proposal calculations |
+| Posterior | Sampler results against numerical quadrature |
+| Physics | Brownian laws and 2D/3D field recovery |
+| Files | Per-cell CSV/Parquet inference and calibrated OME-TIFF export |
 
-```text
-unit         23 cases: independent mathematical identities and proposals
-posterior     4 cases: additive/blocked chains versus refined quadrature
-physics      24 cases: Brownian laws and 2D/3D ground-truth field recovery
-files         5 cases: per-cell CSV/Parquet, OME-TIFF, overrides and legacy XY
-```
+The four checks cover 56 cases. Deprecation and pending-deprecation warnings
+fail tests. Results and available scientific diagnostics are retained as
+GitHub Actions artifacts for seven days.
 
-All recovery seeds and finer-step cases are retained. Only the two full 3D
-convergence cases are deferred from this shorter workflow. No inference code,
-warmup, chain length, seed or acceptance threshold changes are involved.
-Only unit/integration scientific markers exist; no extra test category or
-new testing dependency is needed. No test failure is allowed to continue.
+## Request full convergence
 
-3D convergence (.github/workflows/convergence.yml) runs the uniform and smooth
-cases in parallel, each still using four independent chains, 20,000 production
-sweeps per chain and all 278 monitored quantities. It runs only when someone
-adds the run-convergence label to an open, non-draft PR that is ready to merge.
-There are no push, schedule, numerical-path or workflow_dispatch triggers for
-full convergence. Marking a PR ready for review does not itself request a run.
+Add `run-convergence` to an open, non-draft PR ready to merge. This requests
+the two full 3D convergence cases, using four independent chains and 20,000
+production sweeps per chain for uniform and smooth fields.
 
-Before requesting convergence, finish changes, mark the PR non-draft, then add
-the run-convergence label (create that repository label once if needed). A
-label added while the PR is draft does not run the tests; remove and re-add it
-after the PR is ready. A retained label does not automatically rerun convergence
-on later commits. To request a fresh run for the latest revision, remove and
-re-add the label, and verify both results belong to that revision before
-merging. GitHub's non-draft flag means ready for review; the requester decides
-whether the PR is actually ready to merge.
-
-The shorter Scientific CI workflow runs on PRs and main/master pushes and
-supports workflow_dispatch. Neither workflow has a nightly schedule. To check
-all 58 cases before merging, use the 56 ordinary PR checks plus the explicitly
-requested convergence checks on the same PR revision.
-
-Jobs use CPU float64, Ubuntu 24.04 and uv's managed Python 3.12. Each checkout
-resolves its own ignored uv.lock using uv sync --group dev --no-editable,
-then executes uv run --no-sync against the installed package. Application
-modules live in src/gpdiffusionmapping/; tests use package-qualified imports.
-No --locked/--frozen assumption or CUDA dependency is added.
-The setup-uv cache is keyed from pyproject.toml with a separate suffix per
-matrix job. BLAS/OpenMP threads are fixed at one and Matplotlib uses Agg.
-Independent chains may run concurrently; dependent proposals stay sequential.
-
-Each job reports --durations=20 and saves JUnit XML. File jobs also retain
-physical-result.json. Convergence jobs retain diagnostics and per-chain JSON
-and logs, including available failure evidence. Artifact paths are explicit:
-uv.lock, the virtual environment and raw trajectory/sample archives are not
-uploaded. Retention is seven days. Superseded runs for the same event/ref are
-cancelled; different event types do not cancel each other's required checks.
-
-## Branch protection
-
-The normal checks are named Scientific / unit, Scientific / posterior,
-Scientific / physics and Scientific / files. These are suitable required PR
-checks. Convergence / uniform and Convergence / smooth are opt-in;
-do not require their workflow unconditionally for every PR. Request and inspect
-both convergence checks on the final revision when preparing to merge.
-This change does not modify repository branch protection or bypass permissions.
-
-## Activation and validation
-
-Workflow files must be pushed to GitHub before hosted runs can occur. Local
-workflow linting and exact scientific job execution are recorded separately
-from any hosted result. The previous full suite passed 57 cases in 1221.90 s;
-that historical full run does not measure hosted CI or this parallel layout.
-The exact four shorter job commands passed locally: unit 23/23 (0.886 s),
-posterior 4/4 (11.283 s), physics 24/24 (241.661 s), files 4/4 (191.224 s).
-All 55 passed with zero errors, failures or skips. Jobs ran concurrently
-on the workstation; the longest pytest job was 4m 02s. This excludes hosted
-runner provisioning and dependency installation and uses existing local Numba
-caches. It is not a promised GitHub runtime. Actual hosted timing remains to
-be measured after pushing. Both deferred convergence cases passed previously
-with unchanged full protocols; they were not rerun for workflow-only changes.
-A collection audit confirmed the four short selections are disjoint and their
-union excludes exactly the two full convergence cases. Both workflows passed
-actionlint v1.7.12. Published action refs were checked and pinned to commits.
-Current local selections and measurements are in [github-ci-results.json](github-ci-results.json).
-
-Automatic cell batching adds a fifth file case. All 56 shorter cases passed
-locally with zero failures, errors or skips; the five file cases now recover
-two distinct cell fields each, including repeated particle identifiers and
-separate spatial domains. File validation took 392.65 s; each cell retains the
-validated warmup and production schedule. Current measurements and physical
-errors are in [cell-batch-validation.json](cell-batch-validation.json). Full convergence was not rerun.
-
-## Fresh-runner correction
-
-Hosted run 38914429641 passed unit, posterior and physics, but its files job
-failed before inference: pytest could not create --basetemp because its ignored
-validation_artifacts parent did not exist. Prior local runs had that directory
-already. Both workflows now explicitly create the parent before pytest.
-The files job retains all four scientific cases and their original thresholds.
-CI also installs the package non-editably, so tests exercise the built package
-instead of relying on loose modules from the checkout. The revised layout and
-fresh-directory validation are recorded in [package-validation.json](package-validation.json).
-
-References checked during implementation:
-https://docs.astral.sh/uv/guides/integration/github/
-https://github.com/astral-sh/setup-uv/blob/main/docs/caching.md
-https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
-https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+There is no nightly run. New commits do not rerun convergence automatically;
+remove and re-add the label to request a run for the latest revision. Verify
+both convergence results belong to the revision being merged.
