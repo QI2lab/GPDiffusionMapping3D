@@ -19,6 +19,13 @@ class Dimensions(str, Enum):
     three = "3"
 
 
+class OutputFormat(str, Enum):
+    """Supported diffusion-map table formats."""
+
+    csv = "csv"
+    parquet = "parquet"
+
+
 app = typer.Typer(add_completion=False, pretty_exceptions_enable=False)
 
 
@@ -55,6 +62,9 @@ def main(
     output_dir: Annotated[
         Path, typer.Option(help="Directory for figure, samples and metadata.")
     ] = Path("output"),
+    output_format: Annotated[
+        OutputFormat, typer.Option(help="Map table format; OME-TIFF is also saved.")
+    ] = OutputFormat.parquet,
     scale: Annotated[
         float, typer.Option(
             help="Multiply input positions by this value to obtain microns."
@@ -76,6 +86,7 @@ def main(
             iterations=iterations, scale=scale, delta_t=delta_t,
             cell_col=cell_col, particle_col=particle_col, z_col=z_col,
             y_col=y_col, x_col=x_col, time_col=time_col,
+            output_format=output_format.value,
         ):
             typer.echo(f"Saved cell map and samples to {directory}")
     except (

@@ -4,6 +4,10 @@ Use --scale 0.001 for nanometer input. Saved NPZ and MLE metadata keys now
 use _um and _um2_s suffixes. Figures no longer apply a second conversion.
 Measurements below retain their historical units and numerical values.
 
+Current map outputs: integer cell IDs, zero-padded CSV/Parquet maps and calibrated
+float32 OME-TIFF. See map-export.txt for output layout and the latest 28 passing
+unit/file-physics cases. Inference remains float64.
+
 Micron-unit validation (Linux, Python 3.12, CPU float64): 23 unit cases passed
 in 0.90 s; all five file-physics cases passed in 381.24 s with no skips.
 These recover two distinct fields per case from CSV/Parquet, including

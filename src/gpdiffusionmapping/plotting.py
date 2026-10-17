@@ -41,7 +41,7 @@ def plot(variables, dVect, pVect, data, z_slice=None):
     unshapedMap = cInduFine.T @ (cInduInduInv @ dMAP)
 
     # Reshape variables for plotting
-    shape = (nFineX, nFineY)
+    shape = (nFineY, nFineX)
     shapedMap = np.reshape(unshapedMap, shape)
     shapedX = np.reshape(fineCoordinates[:, 0], shape)
     shapedY = np.reshape(fineCoordinates[:, 1], shape)

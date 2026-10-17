@@ -180,7 +180,8 @@ def read_track_table(path, particle_col="particle_id", cell_col=None):
         Exact identity column. CSV identities are read as strings to avoid
         rounding large integer identifiers through floating point.
     cell_col : str or None, optional
-        Preserve this CSV cell identifier as a string as well.
+        Parse this column as nonnegative int64 cell identifiers without
+        rounding large identifiers through floating point.
 
     Returns
     -------
@@ -188,6 +189,7 @@ def read_track_table(path, particle_col="particle_id", cell_col=None):
         Input columns with their original names and numerical values.
     """
     from pathlib import Path
+    import re
     import pandas as pd
 
     path = Path(path)
@@ -196,13 +198,27 @@ def read_track_table(path, particle_col="particle_id", cell_col=None):
             identities = {particle_col: "string"}
             if cell_col is not None:
                 identities[cell_col] = "string"
-            return pd.read_csv(
+            table = pd.read_csv(
                 path, dtype=identities, skipinitialspace=True
             )
         case ".parquet":
-            return pd.read_parquet(path, engine="pyarrow")
+            table = pd.read_parquet(path, engine="pyarrow")
         case _:
             raise ValueError("Track input must have a .csv or .parquet suffix")
+    if cell_col is not None and cell_col in table:
+        values = table[cell_col]
+        if values.isna().any():
+            raise ValueError(f"Every observation needs an integer {cell_col}")
+        parsed = {}
+        for value in values.unique():
+            if not re.fullmatch(r"[0-9]+", str(value)):
+                raise ValueError(f"{cell_col} must contain nonnegative integers")
+            identity = int(value)
+            if identity > np.iinfo(np.int64).max:
+                raise ValueError(f"{cell_col} exceeds the int64 range")
+            parsed[value] = identity
+        table[cell_col] = values.map(parsed).astype("int64")
+    return table
 
 
 def prepare_table_tracks(
@@ -306,8 +322,9 @@ def iter_cell_tracks(
         A CSV/Parquet file requiring a cell identifier column, or a directory
         whose immediate CSV/Parquet files each represent one cell.
     cell_col : str, optional
-        Cell identifier column for a combined file. Directory cell names come
-        from filenames; an optional cell column must identify only one cell.
+        Nonnegative int64 cell identifier column for a combined file. Directory
+        IDs use the last underscore-number filename token; any cell column
+        must match that ID. Cells are yielded in numeric order.
     dimensions, particle_col, z_col, y_col, x_col, time_col, scale, delta_t
         Spatial dimensions, exact column mappings and physical conversions
         accepted by prepare_table_tracks.
@@ -319,44 +336,54 @@ def iter_cell_tracks(
         including source_file and cell_id provenance.
     """
     from pathlib import Path
-    from urllib.parse import quote
+    import re
 
     path = Path(path)
     directory = path.is_dir()
-    files = (
-        sorted(p for p in path.iterdir()
-               if p.is_file() and p.suffix.lower() in {".csv", ".parquet"})
-        if directory else [path]
-    )
-    if not files:
-        raise ValueError("Input directory contains no CSV or Parquet files")
     if cell_col in {particle_col, z_col, y_col, x_col, time_col}:
         raise ValueError("Cell column must be distinct from track columns")
-    if directory and len({p.stem.casefold() for p in files}) != len(files):
-        raise ValueError("Each cell file must have a unique filename stem")
-    names = set()
-    for source in files:
+    if directory:
+        sources = {}
+        for source in path.iterdir():
+            if not source.is_file() or source.suffix.lower() not in {
+                ".csv", ".parquet",
+            }:
+                continue
+            numbers = re.findall(r"_([0-9]+)(?=_|$)", source.stem)
+            if not numbers:
+                raise ValueError(
+                    f"Cell filename needs an underscore and integer ID: {source}"
+                )
+            identity = int(numbers[-1])
+            if identity > np.iinfo(np.int64).max:
+                raise ValueError(f"Cell ID exceeds the int64 range: {source}")
+            if identity in sources:
+                raise ValueError(f"Duplicate cell ID {identity} in directory")
+            sources[identity] = source
+        if not sources:
+            raise ValueError("Input directory contains no CSV or Parquet files")
+        width = max(4, len(str(max(sources))))
+        files = [(identity, sources[identity]) for identity in sorted(sources)]
+    else:
+        files = [(None, path)]
+    for file_id, source in files:
         table = read_track_table(source, particle_col, cell_col)
         if table.empty:
             raise ValueError(f"No observations in {source}")
-        if cell_col in table:
-            values = table[cell_col]
-            if values.isna().any() or values.astype(str).str.strip().eq("").any():
-                raise ValueError(f"Every observation needs a {cell_col} in {source}")
-        elif not directory:
-            raise ValueError(f"Single-file input requires column {cell_col!r}")
         if directory:
-            if cell_col in table and table[cell_col].nunique() != 1:
-                raise ValueError(f"Each directory file must contain one cell: {source}")
-            cells = [(source.stem, table)]
+            if cell_col in table and set(table[cell_col]) != {file_id}:
+                raise ValueError(
+                    f"Cell column must match filename cell ID {file_id}: {source}"
+                )
+            cells = [(file_id, table)]
         else:
-            cells = table.groupby(cell_col, sort=False, observed=True)
+            if cell_col not in table:
+                raise ValueError(f"Single-file input requires column {cell_col!r}")
+            width = max(4, len(str(int(table[cell_col].max()))))
+            cells = table.groupby(cell_col, sort=True, observed=True)
         for identity, rows in cells:
-            identity = str(identity)
-            name = "cell_" + quote(identity, safe="")
-            if name.casefold() in names:
-                raise ValueError(f"Cell output names collide for {identity!r}")
-            names.add(name.casefold())
+            identity = int(identity)
+            name = f"cell_{identity:0{width}d}"
             data = prepare_table_tracks(
                 rows, dimensions=dimensions, particle_col=particle_col,
                 z_col=z_col, y_col=y_col, x_col=x_col, time_col=time_col,

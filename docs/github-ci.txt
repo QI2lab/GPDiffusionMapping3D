@@ -12,7 +12,7 @@ Linux/Python-3.12 jobs:
     unit         23 cases: independent mathematical identities and proposals
     posterior     4 cases: additive/blocked chains versus refined quadrature
     physics      24 cases: Brownian laws and 2D/3D ground-truth field recovery
-    files         5 cases: per-cell CSV/Parquet, overrides and legacy XY
+    files         5 cases: per-cell CSV/Parquet, OME-TIFF, overrides and legacy XY
 
 All recovery seeds and finer-step cases are retained. Only the two full 3D
 convergence cases are deferred from this shorter workflow. No inference code,

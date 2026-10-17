@@ -4,12 +4,14 @@
 """Independent physical recovery checks through automatic cell batching."""
 
 import json
+import xml.etree.ElementTree as ET
 from itertools import product
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from scipy import stats
+import tifffile
 
 from gpdiffusionmapping.mapping_io import map_cells
 from tests.support.validate_3d import simulate
@@ -39,7 +41,9 @@ def validate_file_physics(directory: Path, backend: str, case: str, source=None)
     frames, oracles = [], {}
     options = {}
     for index, diffusion in enumerate((1.0, 2.0)):
-        cell_id = str(2**53 + 1 + 2 * index)
+        cell_id = (
+            (0, 12)[index] if dimensions == 2 else 2**53 + 1 + 2 * index
+        )
         starts = positions[::2] + 10 * index
         ends = starts + np.sqrt(diffusion) * original_steps
         coords = np.stack((starts, ends), axis=1).reshape(-1, dimensions)
@@ -82,7 +86,7 @@ def validate_file_physics(directory: Path, backend: str, case: str, source=None)
         path.mkdir()
         for identity, frame, suffix in zip(oracles, frames, ("csv", "parquet")):
             frame = frame.drop(columns="cell_id")
-            target = path / f"{identity}.{suffix}"
+            target = path / f"cell_{identity:04d}.{suffix}"
             if suffix == "csv":
                 frame.to_csv(target, index=False)
             else:
@@ -97,14 +101,16 @@ def validate_file_physics(directory: Path, backend: str, case: str, source=None)
         else:
             frame.to_parquet(path, index=False)
     model_options = dict(
-        nFineX=5, nFineY=5, nFineZ=5, covLambda=0.5, covL=1.5, seed=601,
+        nFineX=5, nFineY=4, nFineZ=3, covLambda=0.5, covL=1.5, seed=601,
     )
     if dimensions == 2:
         model_options.update(nInduX=4, nInduY=4)
     results = []
     for output in map_cells(
         path, directory / "maps", dimensions=dimensions, backend=backend,
-        iterations=100 if dimensions == 2 else 1000, **options, **model_options,
+        iterations=100 if dimensions == 2 else 1000,
+        output_format="csv" if "csv" in case else "parquet",
+        **options, **model_options,
     ):
         metadata = json.loads((output / "metadata.json").read_text())
         diffusion, starts, steps, index = oracles.pop(metadata["cell_id"])
@@ -155,6 +161,64 @@ def validate_file_physics(directory: Path, backend: str, case: str, source=None)
         recovered = cross @ np.linalg.solve(covariance, inducing)
         rms = float(np.sqrt(np.mean(((recovered - diffusion) / diffusion)**2)))
         assert rms < 0.1
+        # Read physical maps, reconstruct coordinates from OME calibration,
+        # and compare intensities with an independent GP interpolation oracle.
+        suffix = "csv" if "csv" in case else "parquet"
+        target = output / f"{output.name}.{suffix}"
+        table = pd.read_csv(target) if suffix == "csv" else pd.read_parquet(target)
+        low = np.minimum(starts.min(axis=0), (starts + steps).min(axis=0))
+        high = np.maximum(starts.max(axis=0), (starts + steps).max(axis=0))
+        counts = (5, 4) if dimensions == 2 else (3, 4, 5)
+        levels = [np.linspace(a, b, n) for a, b, n in zip(low, high, counts)]
+        fine = (
+            np.array([(x, y) for y in levels[1] for x in levels[0]])
+            if dimensions == 2 else np.array(list(product(*levels)))
+        )
+        fine_cross = 0.25 * np.exp(
+            -np.sum((fine[:, None] - coords[None])**2, axis=2) / 4.5
+        )
+        expected_map = fine_cross @ np.linalg.solve(covariance, inducing)
+        float64_bound = (
+            128 * np.finfo(float).eps * np.linalg.cond(covariance)
+            * max(1, np.max(abs(expected_map)))
+        )
+        axes = "xy" if dimensions == 2 else "zyx"
+        np.testing.assert_allclose(
+            table[[f"{axis}_um" for axis in axes]], fine, rtol=0,
+            atol=128 * np.finfo(float).eps * max(1, np.max(abs(fine))),
+        )
+        assert set(table["cell_id"]) == {metadata["cell_id"]}
+        np.testing.assert_allclose(
+            table["diffusion_um2_s"], expected_map, rtol=0, atol=float64_bound
+        )
+        with tifffile.TiffFile(output / f"{output.name}.ome.tiff") as image:
+            pixels = image.asarray()
+            ome = ET.fromstring(image.ome_metadata)
+        ns = {"o": "http://www.openmicroscopy.org/Schemas/OME/2016-06"}
+        calibration = ome.find("o:Image/o:Pixels", ns)
+        planes = calibration.findall("o:Plane", ns)
+        for axis, positions in zip(axes, levels):
+            key = axis.upper()
+            step = float(calibration.attrib[f"PhysicalSize{key}"])
+            origin = float(planes[0].attrib[f"Position{key}"])
+            assert calibration.attrib[f"PhysicalSize{key}Unit"] == "µm"
+            np.testing.assert_allclose(
+                origin + step * np.arange(len(positions)), positions,
+                rtol=0, atol=128 * np.finfo(float).eps
+                * max(1, np.max(abs(positions))),
+            )
+        if dimensions == 3:
+            np.testing.assert_allclose(
+                [float(p.attrib["PositionZ"]) for p in planes], levels[0],
+                rtol=0, atol=128 * np.finfo(float).eps * max(1, abs(high[0])),
+            )
+        assert pixels.dtype == np.float32
+        shape = (4, 5) if dimensions == 2 else (3, 4, 5)
+        np.testing.assert_allclose(
+            pixels, expected_map.reshape(shape), rtol=0,
+            atol=float64_bound + np.finfo(np.float32).eps
+            * max(1, np.max(abs(expected_map))),
+        )
         results.append(dict(
             cell_id=metadata["cell_id"], diffusion=diffusion, map_rms=rms,
             posterior_error=float(abs(posterior.max() - expected)),

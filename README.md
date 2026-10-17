@@ -32,27 +32,30 @@ timestamps in seconds, and diffusion coefficients in µm²/s. Each cell is
 inferred separately with its own GP grid.
 
 - **Directory:** each CSV/Parquet file directly inside it represents one cell.
-- **Single file:** a `cell_id` column is required; the CLI automatically groups
-  observations by cell before linking within-particle displacements.
+  Name files `cell_0000.parquet`, `cell_0001.parquet`, etc., or `cell_0000.csv`,
+  `cell_0001.csv`, etc. The integer after the underscore identifies the cell.
+- **Single file:** an integer `cell_id` column is required; the CLI automatically
+  groups observations by cell before linking within-particle displacements.
+  Cell IDs are nonnegative 64-bit integers and may start at zero.
 
 Example single-file **2D** input (`cells_2d.csv`):
 
 ```csv
 cell_id,particle_id,x,y,timestamp
-cell_a,1,0.10,0.20,0.00
-cell_a,1,0.12,0.23,0.01
-cell_b,1,1.10,1.20,0.00
-cell_b,1,1.13,1.22,0.01
+0,1,0.10,0.20,0.00
+0,1,0.12,0.23,0.01
+1,1,1.10,1.20,0.00
+1,1,1.13,1.22,0.01
 ```
 
 Example single-file **3D** input (`cells_3d.csv`):
 
 ```csv
 cell_id,particle_id,z,y,x,timestamp
-cell_a,1,0.30,0.20,0.10,0.00
-cell_a,1,0.32,0.23,0.12,0.01
-cell_b,1,1.30,1.20,1.10,0.00
-cell_b,1,1.33,1.22,1.13,0.01
+0,1,0.30,0.20,0.10,0.00
+0,1,0.32,0.23,0.12,0.01
+1,1,1.30,1.20,1.10,0.00
+1,1,1.33,1.22,1.13,0.01
 ```
 
 These illustrate the columns; inference needs many more observations.
@@ -73,10 +76,18 @@ uv run --no-sync gpdiffusion-map legacy_cells/ --dimensions 2 \
   --x-col xPos --y-col yPos --delta-t 0.03333333333333333
 ```
 
-Each cell gets a `cell_<identifier>/` output folder containing its map,
-samples, metadata and sampling log. Directory inputs use filename stems as
-cell identifiers; single-file inputs use `cell_id` values. Special characters
-are URL-encoded in folder names. Particle IDs may repeat across cells.
+Cells are processed in integer order. Each gets a zero-padded output folder
+(for example, `cell_0000/`) containing:
+
+- `cell_0000.parquet`: map coordinates (`x_um`, `y_um`, plus `z_um` for 3D),
+  integer `cell_id`, and `diffusion_um2_s`. Use `--output-format csv` for CSV.
+- `cell_0000.ome.tiff`: float32 diffusion map in YX (2D) or ZYX (3D) order,
+  with physical pixel sizes and plane positions in µm. Pixel values are µm²/s.
+- Sampling arrays, a preview figure, metadata and sampling log.
+
+Padding expands beyond four digits when needed so filenames remain ordered.
+Particle IDs may repeat across cells. Directory inputs can mix CSV and Parquet;
+any `cell_id` column must agree with the filename.
 
 Use `uv run --no-sync gpdiffusion-map --help` for column overrides, including
 `--cell-col` and `--particle-col`, and unit conversion. Existing files using
