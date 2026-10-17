@@ -163,9 +163,14 @@ cython_debug/
 
 # Local scientific traces and progress logs
 /validation_artifacts/
+/tests/validation/
+/output/
 
 # Local editor settings and Codex instructions
 /.vscode/
 /AGENTS.md
 /CODEX_GPDiffusionMapping_plan.txt
 /docs/CODEX_GPDiffusionMapping_plan.txt
+AGENTS.md
+CODEX*_plan.txt
+CODEX*_plan.md

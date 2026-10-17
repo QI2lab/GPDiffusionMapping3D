@@ -25,5 +25,6 @@ uv run --no-sync python -m tests.support.run_sampling_repair --help
 uv run --no-sync python -m tests.support.validate_migration
 ```
 
-Scientific measurement reports and figures are stored in `validation/`.
+Generated reports and figures belong in the ignored `validation_artifacts/`
+directory. Keep generated results and local planning notes out of Git.
 For inference, use `gpdiffusion-map`; no development tools are needed.
