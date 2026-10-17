@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Brownian predictions and ground-truth field recovery using actual CPU."""
 
 import pytest

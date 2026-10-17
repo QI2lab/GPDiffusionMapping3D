@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2024 Pressé Lab
+# Derived from LabPresse/GPDiffusionMapping; see LICENSE and NOTICE.
+
 """Inference setup, warmup, production sampling and result collection."""
 
 import copy

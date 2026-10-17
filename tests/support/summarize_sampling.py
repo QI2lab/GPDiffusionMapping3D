@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Summarize historical CPU/GPU archives using their original agreement rule."""
 
 import argparse

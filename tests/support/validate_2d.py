@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Independent 2D physical simulations, recovery and CPU benchmarks."""
 
 import contextlib

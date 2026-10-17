@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Independent physical input checks shared by the separate hardware suites."""
 
 import json

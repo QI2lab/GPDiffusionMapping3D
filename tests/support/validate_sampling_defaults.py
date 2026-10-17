@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Measure and physically validate the repaired 3D CPU defaults."""
 
 import contextlib

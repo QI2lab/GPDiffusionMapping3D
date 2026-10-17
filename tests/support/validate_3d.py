@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Independent timestamped 3D physics and predeclared recovery protocol."""
 
 import contextlib

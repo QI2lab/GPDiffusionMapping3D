@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Small positive-diffusion posterior oracles from independent quadrature."""
 
 import contextlib

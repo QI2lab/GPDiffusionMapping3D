@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Physical diffusion recovery through the CPU file-input pipeline."""
 
 import pytest

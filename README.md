@@ -8,6 +8,9 @@ processes. This project extends the method described in the
 [LabPresse/GPDiffusionMapping](https://github.com/LabPresse/GPDiffusionMapping).
 Example and experimental datasets are in `data/`.
 
+Original software: Copyright (c) 2024 Pressé Lab, under the [MIT license](LICENSE).
+See [NOTICE](NOTICE) for attribution and dataset provenance.
+
 ## Installation
 
 Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
@@ -55,6 +58,7 @@ uv run --no-sync python -m pytest tests/cpu --strict-markers -q
 ```
 
 Keep changes consistent with the physical model and include scientific checks.
+Preserve the original copyright, license and attribution notices.
 The shorter CI suite runs automatically; add `run-convergence` to a non-draft
 PR ready to merge to request full convergence checks. Further validation and
 implementation details are in [`docs/`](docs/).

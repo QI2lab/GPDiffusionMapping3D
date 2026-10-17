@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Check unchanged 2D arithmetic against independent Brownian physics."""
 
 import importlib.metadata

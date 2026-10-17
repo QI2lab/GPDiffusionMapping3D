@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Profile warmed CPU inference on the scientifically validated workloads."""
 
 import argparse

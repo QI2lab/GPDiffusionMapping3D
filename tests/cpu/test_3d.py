@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Timestamped 3D mathematics, physical recovery and chain convergence."""
 
 from copy import deepcopy

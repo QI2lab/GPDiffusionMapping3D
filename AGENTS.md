@@ -9,6 +9,9 @@ this decision; their results remain historical evidence in `docs/`.
 
 - Maintain CPU float64 inference using NumPy/Numba. Do not reintroduce CuPy,
   CUDA dependencies or GPU execution without a new user request.
+- Preserve the original upstream `LICENSE` and `Copyright (c) 2024 Pressé Lab`
+  notice. Keep `NOTICE`, source attribution headers and distribution license
+  metadata intact; distinguish later additions from the original authors' work.
 - Preserve the validated 2D sampler and repaired eight-coordinate blocked 3D
   sampler, posterior, positivity rules and warmup/production schedules.
 - Application code lives in `src/gpdiffusionmapping/`. Use package-qualified

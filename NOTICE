@@ -1,0 +1,24 @@
+GPDiffusionMapping: upstream attribution
+
+This project is derived from the original GPDiffusionMapping software:
+https://github.com/LabPresse/GPDiffusionMapping
+
+Original copyright notice:
+Copyright (c) 2024 Pressé Lab
+
+The original MIT license, including its permission notice and warranty
+disclaimer, is preserved verbatim in LICENSE. Retain that license and the
+original copyright notice when distributing copies or substantial portions
+of the original software, including modified versions.
+
+The original method is described in:
+https://doi.org/10.1016/j.bpr.2024.100194
+
+The example and experimental datasets in data/ were supplied with the
+original repository. Attribution to their original source is retained.
+
+The source package, documentation, scientific validation tools and tests in
+this repository build on that work. Later extensions and modifications are
+described in README.md under Changes from Original. The original copyright
+notice identifies the upstream work; it does not attribute later additions
+to Pressé Lab. Third-party dependencies retain their own licenses and notices.

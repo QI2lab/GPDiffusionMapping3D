@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2024 Pressé Lab
+# Derived from LabPresse/GPDiffusionMapping; see LICENSE and NOTICE.
+
 """Sequential compiled CPU Metropolis proposals for the exact GP target."""
 
 import numba as nb

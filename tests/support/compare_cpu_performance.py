@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Compare an archived CPU sampler with the optimized sampler, without profiling."""
 
 import argparse

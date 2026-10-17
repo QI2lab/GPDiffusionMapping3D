@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Plot historical CPU/GPU trace archives; no CUDA execution is performed."""
 
 import argparse

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Reusable deterministic inputs; mutable sampler states stay local to tests."""
 
 import contextlib

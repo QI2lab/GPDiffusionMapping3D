@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2024 Pressé Lab
+# Derived from LabPresse/GPDiffusionMapping; see LICENSE and NOTICE.
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D

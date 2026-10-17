@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2024 Pressé Lab
+# Derived from LabPresse/GPDiffusionMapping; see LICENSE and NOTICE.
+
 """Prepare spatial grids, regularized covariance and initial diffusion."""
 
 from types import SimpleNamespace

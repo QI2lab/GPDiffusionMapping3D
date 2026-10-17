@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Predeclared local sampling-repair experiments on the original 3D fields."""
 
 import argparse

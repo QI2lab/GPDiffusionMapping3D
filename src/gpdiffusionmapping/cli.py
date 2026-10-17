@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Thin Typer entry point for validated linked-track diffusion inference."""
 
 import contextlib

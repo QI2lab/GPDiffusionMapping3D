@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Actual CPU posterior sampling against independently integrated densities."""
 
 import pytest

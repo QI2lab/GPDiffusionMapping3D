@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Measure exact proposal arithmetic without changing the inference model."""
 
 import argparse

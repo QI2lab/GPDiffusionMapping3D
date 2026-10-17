@@ -9,7 +9,7 @@ description = "Gaussian-process diffusion mapping from particle trajectories"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 dependencies = [
     "numpy==2.0.2",
     "numba==0.60.0",
@@ -26,6 +26,8 @@ gpdiffusion-map = "gpdiffusionmapping.cli:app"
 [project.urls]
 Repository = "https://github.com/dpshepherd/GPDiffusionMapping"
 Issues = "https://github.com/dpshepherd/GPDiffusionMapping/issues"
+"Original Repository" = "https://github.com/LabPresse/GPDiffusionMapping"
+Paper = "https://doi.org/10.1016/j.bpr.2024.100194"
 
 [dependency-groups]
 dev = ["pytest>=8"]

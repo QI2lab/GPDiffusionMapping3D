@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Multiple-chain posterior diagnostics for scientific sampling validation."""
 
 import numpy as np

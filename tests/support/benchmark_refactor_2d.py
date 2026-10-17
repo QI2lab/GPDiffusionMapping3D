@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Project attribution: see LICENSE and NOTICE.
+
 """Repeat the original 2D workload sequentially after the numerical refactor."""
 
 import argparse
