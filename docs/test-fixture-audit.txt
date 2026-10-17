@@ -1,0 +1,69 @@
+Scientific test audit
+=====================
+
+Scope: the CPU-only suite on feat/3D after the CPU likelihood optimization.
+The inference implementation, target densities, priors, predeclared seeds,
+warmup, production lengths and scientific thresholds are unchanged.
+
+Organization
+------------
+Reduced collected test functions from 18 to 15 by parametrizing the common
+2D/3D GP identities and consolidating the regular/finer recovery cases into
+their existing dimension-specific recovery tests. All original scientific
+cases remain. The 3D regular-interval and finer-step assertions previously
+shared one test invocation; they now have separate parameter cases, changing
+the collected count from 56 to 57 (23 unit and 34 integration).
+Including the four new fixtures and the removed host-copy wrapper, the total
+number of named functions across affected tests and validation helpers stays
+at 26. Setup reuse does not add a net layer of helper functions.
+
+Only unit and integration remain registered scientific markers. The redundant
+CPU marker is removed; tests/cpu remains the execution directory. Collection
+was inspected to confirm each case has exactly one scientific category.
+There are no API, smoke, snapshot, regression, file-existence, signature or
+ordinary input-validation tests. File integration tests assert Gaussian
+likelihood, analytic MLE, chi-square bounds and ground-truth map recovery.
+
+Reuse and isolation
+-------------------
+Four session fixtures in tests/conftest.py share:
+
+* Deterministic 2D/3D GP data and geometry. Mathematical identities read these
+  arrays directly; block geometry checks clone the mutable state first.
+* One- and two-inducing-value posterior problems, shared between the stepwise
+  density unit checks and full posterior integration checks.
+* Independent Gaussian-density quadrature at orders 128 and 256. Each problem
+  is integrated once per order and reused for additive and blocked proposals.
+  Both samplers still run all four independent chains and check quadrature
+  refinement, convergence and moments/CDFs against Monte Carlo uncertainty.
+* Seed-44 physical source tracks. CSV, Parquet and overridden-column cases
+  serialize the same 3D tracks, then each runs its own complete inference.
+  The legacy XY case uses its original separate regular-interval source.
+
+All shared numerical arrays are read-only. Fresh initial fields, proposal
+buffers, RNG streams and actual chains are not cached or shared. No autouse
+seed or chain matching was introduced. Tiny hand-checkable arrays stay local
+where a fixture would add indirection without meaningful reuse. The obsolete
+CPU host-copy wrapper in the independent block oracle was removed.
+
+Scientific validation
+---------------------
+The consolidated unit selection passed: 23 passed, 34 deselected (5.72 s).
+
+Full-suite command:
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m pytest tests/cpu --strict-markers -q --basetemp validation_artifacts/test-fixture-audit
+
+Full suite: 57 passed, zero failures or skips, in 1221.90 s (20m 22s).
+Both uniform and smooth 3D convergence cases passed with four chains,
+20,000 production sweeps per chain and all 278 monitored quantities.
+Maximum R-hat: uniform 1.00536, smooth 1.00494. Minimum bulk ESS:
+uniform 2200, smooth 2133. Minimum tail ESS: uniform 4778, smooth 4195.
+All four file-input cases passed; 3D MAP RMS was 6.78%, legacy XY 3.57%.
+Additive and blocked posterior integration checks passed using the shared
+quadrature references and independent chains. Compact numerical evidence is
+in test-fixture-audit-results.json; raw traces remain local under the ignored
+validation_artifacts/test-fixture-audit directory. This correctness run is
+not a performance benchmark.
+
+No GPU execution is part of this user-authorized CPU-only audit.
+Windows/macOS remain untested.

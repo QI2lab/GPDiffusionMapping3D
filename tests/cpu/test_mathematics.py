@@ -1,15 +1,12 @@
 """Independent mathematical expectations for the real CPU implementation."""
 
-import contextlib
-import io
 import numpy as np
 import pytest
 from scipy import stats
 
 import functions as f
-from scripts.validate_2d import simulate, parameters
 
-pytestmark = [pytest.mark.cpu, pytest.mark.unit]
+pytestmark = pytest.mark.unit
 
 
 def test_gaussian_density_and_likelihood_difference():
@@ -41,18 +38,18 @@ def test_gaussian_density_and_likelihood_difference():
         )
 
 
-def test_kernel_regularization_interpolation_and_prior():
-    data = simulate(100)
-    with contextlib.redirect_stdout(io.StringIO()):
-        v = f.initialization(parameters(), data, backend="cpu")
+@pytest.mark.parametrize("case", ["2d", "3d-3"])
+def test_kernel_regularization_interpolation_and_prior(case, gp_states):
+    _, v = gp_states[case]
     coords = v.induCoordinates
+    length = 1.2 if case == "2d" else 1.5
     kernel = np.array(
         [
             [
                 0.25
                 * np.exp(
                     -sum((float(x) - float(y)) ** 2 for x, y in zip(p, q))
-                    / (2 * 1.2**2)
+                    / (2 * length**2)
                 )
                 for q in coords
             ]
@@ -61,6 +58,11 @@ def test_kernel_regularization_interpolation_and_prior():
     )
     np.testing.assert_allclose(v.cInduIndu, kernel, rtol=2e-14)
     np.testing.assert_array_equal(kernel, kernel.T)
+    if case == "3d-3":
+        permuted = coords[:, [2, 0, 1]]
+        np.testing.assert_allclose(
+            f.covMat(permuted, permuted, 0.5, 1.5), kernel, rtol=2e-14
+        )
     regularized = kernel + 0.01 * kernel.mean() * np.eye(len(kernel))
     assert np.linalg.eigvalsh(regularized).min() > 0
     tolerance = 128 * np.finfo(float).eps * np.linalg.cond(regularized)
@@ -68,7 +70,7 @@ def test_kernel_regularization_interpolation_and_prior():
     np.testing.assert_allclose(
         v.dData, weights @ v.dIndu, rtol=tolerance, atol=tolerance
     )
-    k, change = 7, 0.02
+    k, change = (7 if case == "2d" else 5), 0.02
     new = v.dIndu + v.cProposal[:, k] * change
     field = v.dData + v.cInduData[k] * change
     np.testing.assert_allclose(
@@ -164,10 +166,10 @@ def test_single_metropolis_proposal_against_full_density(seed, additive):
 
 
 @pytest.mark.parametrize("seed", [11, 12, 13])
-def test_whitened_block_step_against_full_density(seed):
+def test_whitened_block_step_against_full_density(seed, posterior_problems):
     from scripts.posterior_oracle import validate_block_step
 
-    validate_block_step("cpu", seed)
+    validate_block_step("cpu", seed, prepared_problem=posterior_problems[2])
 
 
 @pytest.mark.parametrize("dimensions", [2, 3])

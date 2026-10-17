@@ -1,5 +1,6 @@
 """Timestamped 3D mathematics, physical recovery and chain convergence."""
 
+from copy import deepcopy
 import contextlib
 import io
 import numpy as np
@@ -9,9 +10,7 @@ from scipy import stats
 import data_reader
 import functions as f
 import model
-from scripts.validate_3d import physics, recovery, prepared, SEEDS
-
-pytestmark = pytest.mark.cpu
+from scripts.validate_3d import physics, recovery, SEEDS
 
 
 @pytest.mark.unit
@@ -72,46 +71,6 @@ def test_elapsed_time_partition_and_invariances():
         np.testing.assert_allclose(v.mle, oracle_mle, rtol=2e-14)
 
 
-@pytest.mark.unit
-def test_isotropic_3d_kernel_and_interpolation():
-    data = prepared(count=300)
-    p = {
-        **model.PARAMETERS,
-        "nInduX": 3,
-        "nInduY": 3,
-        "nInduZ": 3,
-        "nFineX": 3,
-        "nFineY": 3,
-        "nFineZ": 3,
-        "covL": 1.5,
-        "covLambda": 0.5,
-    }
-    with contextlib.redirect_stdout(io.StringIO()):
-        v = f.initialization(p, data)
-    coords = v.induCoordinates
-    oracle = np.array(
-        [
-            [
-                0.25 * np.exp(-(np.linalg.norm(x - y) ** 2) / 4.5)
-                for y in coords
-            ]
-            for x in coords
-        ]
-    )
-    np.testing.assert_allclose(v.cInduIndu, oracle, rtol=2e-14)
-    np.testing.assert_allclose(
-        f.covMat(coords[:, [2, 0, 1]], coords[:, [2, 0, 1]], 0.5, 1.5),
-        oracle,
-        rtol=2e-14,
-    )
-    new = v.dIndu + 0.02 * v.cProposal[:, 5]
-    direct = v.cInduData.T @ np.linalg.solve(v.cProposal, new)
-    bound = 128 * np.finfo(float).eps * np.linalg.cond(v.cProposal)
-    np.testing.assert_allclose(
-        v.dData + 0.02 * v.cInduData[5], direct, rtol=bound, atol=bound
-    )
-
-
 @pytest.mark.integration
 @pytest.mark.parametrize("irregular", [False, True])
 @pytest.mark.parametrize("seed", SEEDS)
@@ -120,16 +79,15 @@ def test_three_dimensional_brownian_physics(seed, irregular):
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("feature", [False, True])
-@pytest.mark.parametrize("seed", SEEDS)
-def test_timestamped_physical_field_recovery(seed, feature):
-    assert recovery("cpu", seed, feature)["recovery_rms"] < 0.1
-
-
-@pytest.mark.integration
-def test_regular_and_finer_smooth_recovery():
-    assert recovery("cpu", 41, False, irregular=False)["recovery_rms"] < 0.1
-    assert recovery("cpu", 41, True, substeps=10)["recovery_rms"] < 0.1
+@pytest.mark.parametrize(
+    "seed,feature,irregular,substeps",
+    [(seed, feature, True, 1) for seed in SEEDS for feature in (False, True)]
+    + [(41, False, False, 1), (41, True, True, 10)],
+)
+def test_timestamped_physical_field_recovery(seed, feature, irregular, substeps):
+    assert recovery(
+        "cpu", seed, feature, irregular=irregular, substeps=substeps
+    )["recovery_rms"] < 0.1
 
 
 @pytest.mark.integration
@@ -165,17 +123,10 @@ def test_independent_3d_chains_converge(tmp_path, monkeypatch, feature):
 
 @pytest.mark.unit
 @pytest.mark.parametrize("block_size", [8, 16])
-def test_fixed_whitened_block_geometry_and_density(block_size):
+def test_fixed_whitened_block_geometry_and_density(block_size, gp_states):
     """Check the full 125-coordinate proposal using independent densities."""
-    data = prepared(count=300)
-    parameters = {
-        **model.PARAMETERS,
-        "nInduX": 5, "nInduY": 5, "nInduZ": 5,
-        "nFineX": 3, "nFineY": 3, "nFineZ": 3,
-        "covLambda": 0.5, "covL": 1.5,
-    }
-    with contextlib.redirect_stdout(io.StringIO()):
-        v = f.initialization(parameters, data)
+    data, shared = gp_states["3d-5"]
+    v = deepcopy(shared)
     f.prepare_block_proposals(v, block_size)
     bound = 128 * np.finfo(float).eps * np.linalg.cond(v.cProposal)
     precision = v.cInduInduInv + v.cDataIndu.T @ (

@@ -21,6 +21,11 @@ uv sync --group dev
 uv run --no-sync python -m pytest tests/cpu --strict-markers -q
 ```
 
+The suite uses only `unit` and `integration` scientific categories; select
+either with `-m unit` or `-m integration`. Shared deterministic inputs and
+independent numerical references are fixtures; MCMC states remain separate.
+See [the test audit](docs/test-fixture-audit.txt).
+
 `pyproject.toml` specifies dependencies. `uv.lock` is local and ignored; fresh
 checkouts resolve their own environment. No GPU or CUDA installation is needed.
 
@@ -102,8 +107,9 @@ The CPU suite checks independent Gaussian densities, GP mathematics,
 Metropolis acceptance, posterior quadrature, Brownian physics, uniform/smooth
 field recovery, irregular timestamps, full-chain convergence and physical
 inference through CSV/Parquet with column overrides and unit conversion.
-The latest local run passed **56 scientific tests** with zero skips; detailed
-measurements are in [the CPU results](docs/cpu-optimized-scientific-results.json).
+The latest local run passed **57 scientific tests** with zero skips: 23 unit
+and 34 integration cases. See [the test audit results](docs/test-fixture-audit-results.json)
+and [the CPU optimization results](docs/cpu-optimized-scientific-results.json).
 CPU proposals reuse exact Gaussian likelihood terms and buffers, with an exact
 incremental prior calculation for coefficient moves. The model and sampling
 schedule are unchanged. See [the optimization report](docs/cpu-optimization.txt)

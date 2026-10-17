@@ -66,9 +66,11 @@ def problem(dimensions):
     return data, parameters, covariance, weights, mean
 
 
-def reference(dimensions, order=128, thresholds=None):
+def reference(dimensions, order=128, thresholds=None, prepared_problem=None):
     """Integrate the full Gaussian likelihood and GP prior over positive values."""
-    data, parameters, covariance, weights, mean = problem(dimensions)
+    data, parameters, covariance, weights, mean = (
+        problem(dimensions) if prepared_problem is None else prepared_problem
+    )
     upper = mean + 12 * np.sqrt(np.diag(covariance)).max()
     nodes, gaussian_weights = special.roots_legendre(order)
 
@@ -122,13 +124,24 @@ def reference(dimensions, order=128, thresholds=None):
 
 
 def validate(
-    backend, dimensions, adaptation="diminishing", proposal="additive"
+    backend, dimensions, adaptation="diminishing", proposal="additive",
+    prepared_problem=None, reference_values=None,
 ):
     """Compare four actual chains with independent integrated posterior moments."""
-    expected, thresholds = reference(dimensions, order=128)
-    refined, _ = reference(dimensions, order=256, thresholds=thresholds)
+    if prepared_problem is None:
+        prepared_problem = problem(dimensions)
+    if reference_values is None:
+        expected, thresholds = reference(
+            dimensions, order=128, prepared_problem=prepared_problem
+        )
+        refined, _ = reference(
+            dimensions, order=256, thresholds=thresholds,
+            prepared_problem=prepared_problem,
+        )
+    else:
+        expected, refined, thresholds = reference_values
     np.testing.assert_allclose(expected, refined, rtol=1e-7, atol=1e-8)
-    data, parameters, covariance, weights, mean = problem(dimensions)
+    data, parameters, covariance, weights, mean = prepared_problem
     chains = []
     acceptance = []
     for index, factor in enumerate((0.6, 0.85, 1.2, 1.5)):
@@ -177,9 +190,11 @@ def validate(
     return result
 
 
-def validate_block_step(backend, seed):
+def validate_block_step(backend, seed, prepared_problem=None):
     """Check a whitened block update against independent full Gaussian densities."""
-    data, parameters, covariance, weights, mean = problem(2)
+    data, parameters, covariance, weights, mean = (
+        problem(2) if prepared_problem is None else prepared_problem
+    )
     with contextlib.redirect_stdout(io.StringIO()):
         v = f.initialization(
             {**model.PARAMETERS, **parameters}, data, backend=backend
@@ -189,12 +204,9 @@ def validate_block_step(backend, seed):
     v.epsilon = np.array([0.4])
     v.temperature = 2.0
 
-    def host(value):
-        return np.array(value, copy=True)
-
-    old = host(v.dIndu)
-    directions = host(v.block_directions)
-    prior_mean = host(v.priorMean)
+    old = v.dIndu.copy()
+    directions = v.block_directions.copy()
+    prior_mean = v.priorMean.copy()
     density = lambda d: (
         stats.multivariate_normal.logpdf(d, mean=prior_mean, cov=covariance)
         + stats.norm.logpdf(
@@ -224,9 +236,9 @@ def validate_block_step(backend, seed):
     with contextlib.redirect_stdout(io.StringIO()):
         v, accepted = f.diffusionPointSampler(v, data)
     expected = proposed if accept else old
-    np.testing.assert_allclose(host(v.dIndu), expected, rtol=bound, atol=bound)
+    np.testing.assert_allclose(v.dIndu, expected, rtol=bound, atol=bound)
     np.testing.assert_allclose(
-        host(v.dData), weights @ expected, rtol=bound, atol=bound
+        v.dData, weights @ expected, rtol=bound, atol=bound
     )
     np.testing.assert_allclose(
         v.P,

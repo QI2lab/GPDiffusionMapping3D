@@ -15,7 +15,7 @@ from scripts.validate_3d import simulate
 CASES = ("csv", "parquet", "parquet-overrides", "legacy-csv")
 
 
-def validate_file_physics(directory: Path, backend: str, case: str):
+def validate_file_physics(directory: Path, backend: str, case: str, source=None):
     """Recover diffusion after table serialization and physical conversion.
 
     Uses predeclared data seed44, sampler seeds CPU601/GPU701, 20000 linked
@@ -26,7 +26,9 @@ def validate_file_physics(directory: Path, backend: str, case: str):
     legacy = case == "legacy-csv"
     overrides = case == "parquet-overrides"
     dimensions = 2 if legacy else 3
-    ids, positions, times = simulate(seed=44, irregular=not legacy)
+    ids, positions, times = (
+        simulate(seed=44, irregular=not legacy) if source is None else source
+    )
     if legacy:
         positions = positions[:, 1:]
     steps = positions[1::2] - positions[::2]

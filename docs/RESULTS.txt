@@ -1,3 +1,9 @@
+Latest test audit: 57 scientific tests passed with zero skips in 1221.90 s.
+The suite has only unit (23 cases) and integration (34 cases) categories,
+15 test functions and four shared fixtures. Both full four-chain convergence
+gates and all file-input physics gates passed. See test-fixture-audit.txt
+and test-fixture-audit-results.json. Prior measurements follow unchanged.
+
 CURRENT STATUS: CPU-ONLY FOLLOWING THE USER'S PERFORMANCE REVIEW
 
 GPU support and its dependencies were subsequently removed in favor of the

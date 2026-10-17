@@ -15,6 +15,9 @@ this decision; their results remain historical evidence in `docs/`.
   `uv run --no-sync python -m pytest tests/cpu --strict-markers -q`.
 - Keep mathematical, physical and independent multi-chain convergence checks.
   GPU comparison tests and executable CUDA experiments are retired.
+- The current CPU-only suite uses only `unit` and `integration` scientific
+  markers. Reuse deterministic read-only inputs through shared fixtures; keep
+  mutable sampler states and independent chains separate.
 - CLI inference always uses CPU float64. Existing computational API
   `backend="cpu"` and `dtype="float64"` arguments remain accepted; unsupported
   values must raise an error rather than silently change execution.

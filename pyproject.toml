@@ -38,7 +38,6 @@ py-modules = [
 [tool.pytest.ini_options]
 testpaths = ["tests/cpu"]
 markers = [
-    "cpu: scientific calculations on the CPU",
     "unit: independent mathematical identities",
     "integration: independently simulated physical behavior and inference",
 ]
