@@ -35,6 +35,28 @@ See [the CI configuration and local validation](docs/github-ci.txt).
 `pyproject.toml` specifies dependencies. `uv.lock` is local and ignored; fresh
 checkouts resolve their own environment. No GPU or CUDA installation is needed.
 
+## Pull requests in this fork
+
+Push feature branches to `origin`, which should be
+`https://github.com/dpshepherd/GPDiffusionMapping`:
+
+```bash
+git push -u origin feat/3D
+```
+
+Open [a PR targeting this fork's main branch](https://github.com/dpshepherd/GPDiffusionMapping/compare/main...feat%2F3D?expand=1).
+Before submitting, verify that the base repository is
+`dpshepherd/GPDiffusionMapping`, the base branch is `main`, and the compare
+branch is `feat/3D`. The PR base repository is selected separately from the
+Git push remote.
+
+If using GitHub CLI, explicitly select this fork:
+
+```bash
+gh repo set-default dpshepherd/GPDiffusionMapping
+gh pr create --repo dpshepherd/GPDiffusionMapping --base main --head feat/3D --web
+```
+
 ## Usage
 
 The `gpdiffusion-map` Typer command reads `.csv` or `.parquet` containing
